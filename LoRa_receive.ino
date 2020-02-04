@@ -3,9 +3,9 @@
 
 #include "FS.h"
 #include <SPI.h>
-#include <Wire.h>
-#include "RTClib.h"
 
+#define OFF 0   // For LED
+#define ON 1
 
 // SPI LoRa Radio
 #define LORA_SCK 5        // GPIO5 - SX1276 SCK
@@ -15,7 +15,7 @@
 #define LORA_RST 14   // GPIO14 - SX1276 RST
 #define LORA_IRQ 26  // GPIO26 - SX1276 IRQ (interrupt request)
 String sensorReading = "";
-RTC_DS3231 rtc;
+
 void setup() {
   Serial.begin(115200);
   while (!Serial);;
@@ -39,9 +39,6 @@ void setup() {
 
 void loop() {
   // try to parse packet
-  DateTime now = rtc.now();
-  String dateTime = String(now.year())+"/"+String(now.month())+"/"+String(now.day())+"at"+String(now.hour())+":"+String(now.minute())+":"+String(now.second());
-  Serial.println(dateTime);
   int packetSize = LoRa.parsePacket();
   if (packetSize) {
     // read packet
@@ -49,6 +46,6 @@ void loop() {
       sensorReading = LoRa.readString(); // Assemble new packet
     }
     //rssi = LoRa.packetRssi();
-    Serial.println(sensorReading+","+dateTime);
+    Serial.println(sensorReading);
   }
 }
