@@ -15,7 +15,7 @@ String sensorReading = "";
 
 void setup() {
   Serial.begin(115200);
-  while (!Serial);;
+  while (!Serial);
 
   // Very important for SPI pin configuration!
   SPI.begin(LORA_SCK, LORA_MISO, LORA_MOSI, LORA_CS);
