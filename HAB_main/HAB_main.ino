@@ -18,8 +18,17 @@ SoftwareSerial doSerial(4, 5);  // do sensor TX --> D4 of atmega
 String diagnostics = "";
 int checkStatus;
 
+/*These values must be modifed for each senspak unit*/
+//calibration constants,use separate sketch for calibration and then replace these values
+const float phSlope = 3.6578;
+const float phIntercept = 0.6476;
+const float  wpOffSet = 0.2 ;
 //SensPak ID
-String ID = "3";
+String ID = "2";
+//sleep time
+int sleep_length = 2;
+  
+ 
 //sensor values in string
 String dataToLora = "";
 String ec = "";
@@ -45,11 +54,6 @@ int ecDoPow = 13;
 float phVoltage;
 float wpVoltage;
 float chlVoltage;
-
-//calibration constants,use separate sketch for calibration and then replace these values
-const float phSlope = 3.743;
-const float phIntercept = 0.7118;
-const float  wpOffSet = 0.2 ;
 
 
 
@@ -261,7 +265,7 @@ void loop() {
     digitalWrite (i, LOW);
   }
 
-  for (int i = 0; i < 2  ; i++) { //adjust this to extend sleep time
+  for (int i = 0; i < (sleep_length+random(7)) ; i++) { //adjust this to extend sleep time
     MCUCR |= (3 << 5);
     MCUCR = (MCUCR & ~(1 << 5)) | (1 << 6);
     __asm__ __volatile("sleep"::);
