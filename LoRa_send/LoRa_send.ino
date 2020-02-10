@@ -74,7 +74,6 @@ void setup() {
       sensorReading += serial2Char;
     }
     if (sensorReading.indexOf('D') == 0) {
-      Serial.println(sensorReading);//TO DO Oct 22, 2019
       Display.begin();
       Display.enableUTF8Print();    // enable UTF8 support for the Arduino print() function
       Display.setFont(u8g2_font_6x13_tf);

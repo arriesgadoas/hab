@@ -26,7 +26,7 @@ const float  wpOffSet = 0.2 ;
 //SensPak ID
 String ID = "2";
 //sleep time
-int sleep_length = 2;
+int sleep_length = 0;
   
  
 //sensor values in string
@@ -278,11 +278,11 @@ void loop() {
   ecSerial.begin(9600);
   doSerial.begin(9600);
   dataToLora = readData();
+  
   Serial.begin(9600);
-  for (int i = 0; i < 6; i++) {
-    Serial.println(dataToLora);
-    delay(500);
-  }
+  delay(1000);
+  Serial.print(dataToLora);
+
   ec = "";
   dO = "";
 
