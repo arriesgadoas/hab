@@ -66,13 +66,14 @@ void setup() {
 
   startMillis = millis();  //initial start time
   period = 3000;
-
+  
   do {
     currentMillis = millis();
     while (Serial2.available() > 0) {
       char serial2Char = (char)Serial2.read();
       sensorReading += serial2Char;
     }
+    Serial.println(sensorReading);
     if (sensorReading.indexOf('D') == 0) {
       Display.begin();
       Display.enableUTF8Print();    // enable UTF8 support for the Arduino print() function

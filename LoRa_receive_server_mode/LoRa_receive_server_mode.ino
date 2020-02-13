@@ -2,6 +2,7 @@
 #include <LoRa.h>       // https://github.com/sandeepmistry/arduino-LoRa
 #include <U8g2lib.h>   // https://github.com/olikraus/U8g2_Arduino 
 //#include <U8x8lib.h>
+#include <WiFi.h>
 
 // SPI LoRa Radio
 #define LORA_SCK 5        // GPIO5 - SX1276 SCK
@@ -19,6 +20,12 @@
 U8G2_SSD1306_128X64_NONAME_F_SW_I2C Display(U8G2_R0, /* clock=*/ OLED_SCL, /* data=*/ OLED_SDA, /* reset=*/ OLED_RST); // Full framebuffer, SW I2C
 
 String sensorReading = "";
+String receivedData = "";
+unsigned long startMillis;
+unsigned long currentMillis;
+unsigned long period;
+int id = 1;
+int mode = 0;
 
 void setup() {
   Serial.begin(115200);
@@ -41,37 +48,99 @@ void setup() {
   LoRa.setTxPower(20, PA_OUTPUT_PA_BOOST_PIN);
   //LoRa.setSignalBandwidth(125E3);
 }
+void diagnosis() {
+
+  Display.begin();
+  Display.enableUTF8Print();    // enable UTF8 support for the Arduino print() function
+  Display.setFont(u8g2_font_6x13_tf);
+  //Display error code here
+  Display.clearBuffer();
+  Display.setCursor(0, 12);
+  Display.print("DIAGNOSTIC:");
+  Display.setCursor(0, 30);
+  Display.print(sensorReading);
+  Display.sendBuffer();
+  delay(500);
+}
+
+void sendPacket(String packet) {
+  LoRa.beginPacket();
+  LoRa.print(packet);
+  LoRa.endPacket();
+}
+
+String receivePacket() {
+  String received;
+  int packetSize = LoRa.parsePacket();
+  if (packetSize) {
+    // read packet
+    while (LoRa.available()) {
+      received = LoRa.readString(); // Assemble new packet
+    }
+  }
+  return received;
+}
+
+int startServer() {
+  const char* ssid     = "PLDT_Home_3AE40";
+  const char* password = "f7sbgeag";
+  WiFiServer server(80);
+  WiFi.begin(ssid, password);
+  while (WiFi.status() != WL_CONNECTED) {
+  }
+  return 1;
+}
 
 void loop() {
-  while (Serial2.available() > 0) {
-    char serial2Char = (char)Serial2.read();
-    sensorReading += serial2Char;
-  }
+  if (mode == 0) {                                  // mode '0' for normal operation
+    if (Serial2.available()) {
+      while (Serial2.available() > 0) {
+        char serial2Char = (char)Serial2.read();
+        sensorReading += serial2Char;
+      }
+      if (sensorReading != "") {
+        if (sensorReading.indexOf('D') == 0) {
+          Display.setPowerSave(0);
+          diagnosis();
+          Display.setPowerSave(1);
+        }
 
-  if (sensorReading.indexOf('D') == 0) {
-    Serial.println(sensorReading);
-    Display.begin();
-    Display.enableUTF8Print();    // enable UTF8 support for the Arduino print() function
-    Display.setFont(u8g2_font_6x13_tf);
-    //Display error code here
-    Display.clearBuffer();
-    Display.setCursor(0, 12);
-    Display.print("DIAGNOSTIC:");
-    Display.setCursor(0, 30);
-    Display.print(sensorReading);
-    Display.sendBuffer();
-  }
+        else {
+          sendPacket(sensorReading);
+          Serial.println(sensorReading);
+        }
+      }
+      else {
+        Serial.println("empty");
+        delay(1000);
+      }
+      sensorReading = "";
 
-  else {
-    for (int i = 0; i < 3; i++) {
-      LoRa.beginPacket();
-      LoRa.print(sensorReading);
-      LoRa.endPacket();
-      Serial.println(sensorReading);
-      delay(1000);
+    }
+
+    else {
+
+      receivedData = receivePacket();
+
+      if (receivedData.length() > 1) {
+        Serial.println(receivedData);
+        sendPacket(receivedData);
+      }
+
+      else if (receivedData.length() == 1) {
+        if (receivedData == String(id)) {
+          //start server
+          if (startServer() == 1) {
+            mode = 1;
+          }
+        }
+      }
+
     }
   }
 
-  sensorReading = "";
-
+  if (mode == 1) {                //mode '1' for remote access
+    Serial.println("calibration mode");
+    Serial.println(WiFi.localIP());
+  }
 }

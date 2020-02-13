@@ -20,6 +20,14 @@ int checkStatus;
 
 /*These values must be modifed for each senspak unit*/
 //calibration constants,use separate sketch for calibration and then replace these values
+/*
+********slope*******intercept
+SP1:    4.8779     -1.5689
+SP2:    3.6578      0.6476
+SP3:    3.4663      0.9455
+SP4:    3.2962      1.18775
+SP5:    3.6117      0.6555
+*/
 const float phSlope = 3.6578;
 const float phIntercept = 0.6476;
 const float  wpOffSet = 0.2 ;
@@ -27,8 +35,8 @@ const float  wpOffSet = 0.2 ;
 String ID = "2";
 //sleep time
 int sleep_length = 0;
-  
- 
+
+
 //sensor values in string
 String dataToLora = "";
 String ec = "";
@@ -72,16 +80,16 @@ void setup() {
 
   unsigned long startMillis;
   unsigned long currentMillis;
-  unsigned long sleepTime;
+  unsigned long diagnosticTime;
   startMillis = millis();  //initial start time
-  sleepTime = 20000;
+  diagnosticTime = 20000;
 
   do {
     currentMillis = millis();
     dataToLora = diagnostic();
     Serial.println(dataToLora);
     //startMillis = currentMillis;
-  } while (currentMillis - startMillis <= sleepTime);
+  } while (currentMillis - startMillis <= diagnosticTime);
 
 
 
@@ -121,15 +129,28 @@ String dataString(String sensor1, String sensor2, String sensor3, String sensor4
   return reading;
 }
 
+float getAverage(float *a,int numbers){
+  float sum = 0;
+  for(int i = 0; i < numbers; i++){
+    sum += a[i];
+    }
+
+  float average = sum/numbers;
+  return average;
+  }
+
+  
 String readData() {
   unsigned long startMillis;
   unsigned long currentMillis;
   String stringData;
-  unsigned long ec_samplingTime = 30000;
-  unsigned long do_samplingTime = 10000;
-  unsigned long ph_samplingTime = 30000;
-  unsigned long chl_samplingTime = 2000;
+  unsigned long ec_responseTime = 120000;
+  unsigned long do_responseTime = 120000;
+  unsigned long ph_responseTime = 120000;
+  unsigned long chl_responseTime = 2000;
   float voltagePercent;
+  int samples = 20;
+  float arr[samples + 1];
   voltagePercent = getBatLevel() * 100 / 3.7;
 
 
@@ -146,7 +167,7 @@ String readData() {
   /*--------------EC sensor-----------*/
   //get ec sensor reading
   digitalWrite(ecDoPow, HIGH);
-  ecSerial.print("T,"+temp);
+  ecSerial.print("T," + temp);
   ecSerial.print("\r");
   startMillis = millis();  //initial start time
 
@@ -159,7 +180,19 @@ String readData() {
       char serialChar = (char)ecSerial.read();
       ec += serialChar;
     }
-  } while (currentMillis - startMillis <= ec_samplingTime);
+  } while (currentMillis - startMillis <= ec_responseTime);
+
+
+  for (int i = 0; i < samples; i++) {
+    while (ecSerial.available() > 0) {
+      char serialChar = (char)ecSerial.read();
+      ec += serialChar;
+    }
+    arr[i] = ec.toFloat();
+    delay(500);
+  }
+
+  ec = String(getAverage(arr, samples));
   
   /*--------------DO sensor-----------*/
   //get do sensor reading
@@ -178,7 +211,18 @@ String readData() {
       char serialChar = (char)doSerial.read();
       dO += serialChar;
     }
-  } while (currentMillis - startMillis <= do_samplingTime);
+  } while (currentMillis - startMillis <= do_responseTime);
+
+  for (int i = 0; i < samples; i++) {
+    while (doSerial.available() > 0) {
+      char serialChar = (char)doSerial.read();
+      dO += serialChar;
+    }
+    arr[i] = dO.toFloat();
+    delay(500);
+  }
+
+  dO = String(getAverage(arr, samples));
   digitalWrite(ecDoPow, LOW);
 
   /*--------------pH sensor-----------*/
@@ -188,7 +232,13 @@ String readData() {
   do {
     currentMillis = millis();
     phVoltage = analogRead(A0) * 5.00 / 1023.00;
-  } while (currentMillis - startMillis <= ph_samplingTime);
+  } while (currentMillis - startMillis <= ph_responseTime);
+
+  for (int i = 0; i < samples; i++) {
+    arr[i] = analogRead(A0) * 5.00 / 1023.00;
+    delay(500);
+  }
+  phVoltage = getAverage(arr, samples);
   ph = String((phSlope * phVoltage) + phIntercept); //voltage to actual pH value
   digitalWrite(phPow, LOW);   //turn off pH sensor
 
@@ -207,8 +257,13 @@ String readData() {
   do {
     currentMillis = millis();
     chlVoltage = analogRead(A4) * 5.00 / 1023.00;
-  } while (currentMillis - startMillis <= chl_samplingTime);
+  } while (currentMillis - startMillis <= chl_responseTime);
 
+  for (int i = 0; i < samples; i++) {
+    arr[i] = analogRead(A4) * 5.00 / 1023.00;
+    delay(500);
+  }
+  chlVoltage = getAverage(arr, samples);
   chl = String(chlVoltage);
   digitalWrite(chlPow, LOW);
 
@@ -265,7 +320,7 @@ void loop() {
     digitalWrite (i, LOW);
   }
 
-  for (int i = 0; i < (sleep_length+random(7)) ; i++) { //adjust this to extend sleep time
+  for (int i = 0; i < (sleep_length + random(7)) ; i++) { //adjust this to extend sleep time
     MCUCR |= (3 << 5);
     MCUCR = (MCUCR & ~(1 << 5)) | (1 << 6);
     __asm__ __volatile("sleep"::);
@@ -278,10 +333,10 @@ void loop() {
   ecSerial.begin(9600);
   doSerial.begin(9600);
   dataToLora = readData();
-  
   Serial.begin(9600);
   delay(1000);
   Serial.print(dataToLora);
+
 
   ec = "";
   dO = "";
