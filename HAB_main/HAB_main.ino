@@ -21,18 +21,18 @@ int checkStatus;
 /*These values must be modifed for each senspak unit*/
 //calibration constants,use separate sketch for calibration and then replace these values
 /*
-********slope*******intercept
+********pH slope****pH intercept
 SP1:    4.8779     -1.5689
 SP2:    3.6578      0.6476
 SP3:    3.4663      0.9455
 SP4:    3.2962      1.18775
 SP5:    3.6117      0.6555
 */
+//SensPak ID
+String ID = "2";
 const float phSlope = 3.6578;
 const float phIntercept = 0.6476;
 const float  wpOffSet = 0.2 ;
-//SensPak ID
-String ID = "2";
 //sleep time
 int sleep_length = 0;
 
@@ -139,7 +139,7 @@ float getAverage(float *a,int numbers){
   return average;
   }
 
-  
+ // get sensor readings
 String readData() {
   unsigned long startMillis;
   unsigned long currentMillis;
@@ -229,7 +229,7 @@ String readData() {
   //get pH sensor reading
   digitalWrite(phPow, HIGH); //turn on pH sensor
   startMillis = millis();
-  do {
+  do {-
     currentMillis = millis();
     phVoltage = analogRead(A0) * 5.00 / 1023.00;
   } while (currentMillis - startMillis <= ph_responseTime);
@@ -295,6 +295,7 @@ String diagnostic() {
   return stringData;
 }
 
+//watch dog timer
 ISR(WDT_vect) {
 }
 
