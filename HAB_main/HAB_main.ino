@@ -22,17 +22,17 @@ int checkStatus;
 //calibration constants,use separate sketch for calibration and then replace these values
 /*
 ********slope*******intercept
-SP1:    4.8779     -1.5689
-SP2:    3.6578      0.6476
-SP3:    3.4663      0.9455
-SP4:    3.2962      1.18775
-SP5:    3.6117      0.6555
+  SP1:    4.8779     -1.5689
+  SP2:    3.6578      0.6476
+  SP3:    3.4663      0.9455
+  SP4:    3.2962      1.18775
+  SP5:    3.5406      1.6359
 */
-const float phSlope = 3.6578;
-const float phIntercept = 0.6476;
+const float phSlope = 3.5406;
+const float phIntercept = 1.6359;
 const float  wpOffSet = 0.2 ;
 //SensPak ID
-String ID = "2";
+String ID = "5";
 //sleep time
 int sleep_length = 0;
 
@@ -82,7 +82,7 @@ void setup() {
   unsigned long currentMillis;
   unsigned long diagnosticTime;
   startMillis = millis();  //initial start time
-  diagnosticTime = 20000;
+  diagnosticTime = 0;
 
   do {
     currentMillis = millis();
@@ -129,25 +129,25 @@ String dataString(String sensor1, String sensor2, String sensor3, String sensor4
   return reading;
 }
 
-float getAverage(float *a,int numbers){
+float getAverage(float *a, int numbers) {
   float sum = 0;
-  for(int i = 0; i < numbers; i++){
+  for (int i = 0; i < numbers; i++) {
     sum += a[i];
-    }
-
-  float average = sum/numbers;
-  return average;
   }
 
-  
+  float average = sum / numbers;
+  return average;
+}
+
+
 String readData() {
   unsigned long startMillis;
   unsigned long currentMillis;
   String stringData;
-  unsigned long ec_responseTime = 120000;
-  unsigned long do_responseTime = 120000;
-  unsigned long ph_responseTime = 120000;
-  unsigned long chl_responseTime = 2000;
+  unsigned long ec_responseTime = 0;
+  unsigned long do_responseTime = 0;
+  unsigned long ph_responseTime = 0;
+  unsigned long chl_responseTime = 0;
   float voltagePercent;
   int samples = 20;
   float arr[samples + 1];
@@ -193,7 +193,7 @@ String readData() {
   }
 
   ec = String(getAverage(arr, samples));
-  
+
   /*--------------DO sensor-----------*/
   //get do sensor reading
   doSerial.print("T," + temp);
@@ -204,7 +204,6 @@ String readData() {
   do {
     currentMillis = millis();
     dO = "";
-    Serial.println("test");
     doSerial.listen();  //listen to doSerial port
     delay(999);         //wait!! for some reason hindi pwedeng pareho sila ng delay ng unang software serial, thus 999
     while (doSerial.available() > 0) {
@@ -228,17 +227,18 @@ String readData() {
   /*--------------pH sensor-----------*/
   //get pH sensor reading
   digitalWrite(phPow, HIGH); //turn on pH sensor
+  delay(100);
   startMillis = millis();
   do {
     currentMillis = millis();
-    phVoltage = analogRead(A0) * 5.00 / 1023.00;
+    //phVoltage = analogRead(A0) * 5.00 / 1023.00;
   } while (currentMillis - startMillis <= ph_responseTime);
 
   for (int i = 0; i < samples; i++) {
-    arr[i] = analogRead(A0) * 5.00 / 1023.00;
-    delay(500);
+    arr[i] = analogRead(A0);
+    delay(20);
   }
-  phVoltage = getAverage(arr, samples);
+  phVoltage = getAverage(arr, samples) * (5.0 / 1023.0);
   ph = String((phSlope * phVoltage) + phIntercept); //voltage to actual pH value
   digitalWrite(phPow, LOW);   //turn off pH sensor
 
@@ -265,7 +265,7 @@ String readData() {
   }
   chlVoltage = getAverage(arr, samples);
   chl = String(chlVoltage);
-  digitalWrite(chlPow, LOW);
+  digitalWrite(chlPow, LOW); 
 
   return stringData = ID + ","  + dataString(ec, dO, temp, ph, wp, chl) + "," + String(voltagePercent);
 }
@@ -320,7 +320,7 @@ void loop() {
     digitalWrite (i, LOW);
   }
 
-  for (int i = 0; i < (sleep_length + random(7)) ; i++) { //adjust this to extend sleep time
+  for (int i = 0; i < (sleep_length + random(0)) ; i++) { //adjust this to extend sleep time
     MCUCR |= (3 << 5);
     MCUCR = (MCUCR & ~(1 << 5)) | (1 << 6);
     __asm__ __volatile("sleep"::);
@@ -335,7 +335,7 @@ void loop() {
   dataToLora = readData();
   Serial.begin(9600);
   delay(1000);
-  Serial.print(dataToLora);
+  Serial.println(dataToLora);
 
 
   ec = "";
