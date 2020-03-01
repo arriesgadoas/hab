@@ -28,13 +28,13 @@ int checkStatus;
   SP4:    3.2962      1.18775
   SP5:    3.5406      1.6359
 */
-const float phSlope = 3.5406;
-const float phIntercept = 1.6359;
-const float  wpOffSet = 0.2 ;
+const float phSlope = 4.8779;
+const float phIntercept = -1.5689;
+const float  wpOffSet = 0;
 //SensPak ID
-String ID = "5";
+String ID = "1";
 //sleep time
-int sleep_length = 0;
+int sleep_length = 450;
 
 
 //sensor values in string
@@ -236,7 +236,7 @@ String readData() {
 
   for (int i = 0; i < samples; i++) {
     arr[i] = analogRead(A0);
-    delay(20);
+    delay(500);
   }
   phVoltage = getAverage(arr, samples) * (5.0 / 1023.0);
   ph = String((phSlope * phVoltage) + phIntercept); //voltage to actual pH value
@@ -265,7 +265,7 @@ String readData() {
   }
   chlVoltage = getAverage(arr, samples);
   chl = String(chlVoltage);
-  digitalWrite(chlPow, LOW); 
+  digitalWrite(chlPow, LOW);
 
   return stringData = ID + ","  + dataString(ec, dO, temp, ph, wp, chl) + "," + String(voltagePercent);
 }
@@ -325,9 +325,6 @@ void loop() {
     MCUCR = (MCUCR & ~(1 << 5)) | (1 << 6);
     __asm__ __volatile("sleep"::);
   }
-
-  ADCSRA = old_ADCSRA;
-
   SoftwareSerial ecSerial(2, 3); //ec sensor TX --> D2 of atmega
   SoftwareSerial doSerial(4, 5);  // do sensor TX --> D4 of atmega
   ecSerial.begin(9600);
@@ -340,5 +337,6 @@ void loop() {
 
   ec = "";
   dO = "";
+  ADCSRA = old_ADCSRA;
 
 }

@@ -26,6 +26,7 @@ unsigned long currentMillis;
 unsigned long period;
 int id = 1;
 int mode = 0;
+byte syncWord = 0x14;
 
 void setup() {
   Serial.begin(115200);
@@ -46,6 +47,7 @@ void setup() {
 
   LoRa.setSpreadingFactor(12);
   LoRa.setTxPower(20, PA_OUTPUT_PA_BOOST_PIN);
+  LoRa.setSyncWord(syncWord);
   //LoRa.setSignalBandwidth(125E3);
 }
 void diagnosis() {

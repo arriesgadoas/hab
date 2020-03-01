@@ -15,7 +15,7 @@
 #define LORA_RST 14   // GPIO14 - SX1276 RST
 #define LORA_IRQ 26  // GPIO26 - SX1276 IRQ (interrupt request)
 String sensorReading = "";
-
+byte syncWord = 0x14;
 void setup() {
   Serial.begin(115200);
   while (!Serial);;
@@ -35,6 +35,7 @@ void setup() {
   // The larger the spreading factor the greater the range but slower data rate
   // Send and receive radios need to be set the same
   LoRa.setSpreadingFactor(12);  // ranges from 6-12, default 7 see API docs
+  LoRa.setSyncWord(syncWord);
 }
 
 void loop() {
