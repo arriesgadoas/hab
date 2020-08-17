@@ -22,19 +22,19 @@ int checkStatus;
 //calibration constants,use separate sketch for calibration and then replace these values
 /*
 ********slope*******intercept
-  SP1:    4.8779     -1.5689
+  SP1: -   4.8779     -1.5689
   SP2:    3.6578      0.6476
-  SP3:    3.4663      0.9455
+  SP3:   - 3.4663      0.9455
   SP4:    3.2962      1.18775
   SP5:    3.5406      1.6359
 */
-const float phSlope = 4.8779;
+const float phSlope = 4.8779;--
 const float phIntercept = -1.5689;
 const float  wpOffSet = 0;
 //SensPak ID
 String ID = "1";
 //sleep time
-int sleep_length = 450;
+int sleep_length = 1;
 
 
 //sensor values in string
@@ -55,8 +55,10 @@ int chlAnalog;
 int tempPow = 7;
 int phPow = 8;
 int wpPow = 10;
+int doPow = 11;
 int chlPow = 12;
-int ecDoPow = 13;
+int ecPow = 13;
+
 
 //sensor voltage values
 float phVoltage;
@@ -70,10 +72,10 @@ void setup() {
   ecSerial.begin(9600);
   doSerial.begin(9600);
 
-  pinMode(ecDoPow, OUTPUT);
+  pinMode(ecPow, OUTPUT);
   pinMode(tempPow, OUTPUT);
   pinMode(phPow, OUTPUT);
-  //  pinMode(turbPow, OUTPUT);
+    pinMode(doPow, OUTPUT);
   pinMode(wpPow, OUTPUT);
   //  pinMode(tdsPow, OUTPUT);
   pinMode(chlPow, OUTPUT);
@@ -166,9 +168,9 @@ String readData() {
 
   /*--------------EC sensor-----------*/
   //get ec sensor reading
-  digitalWrite(ecDoPow, HIGH);
-  ecSerial.print("T," + temp);
-  ecSerial.print("\r");
+  digitalWrite(ecPow, HIGH);
+  /*ecSerial.print("T," + temp);
+  ecSerial.print("\r");*/
   startMillis = millis();  //initial start time
 
   do {
@@ -193,13 +195,14 @@ String readData() {
   }
 
   ec = String(getAverage(arr, samples));
-
+  digitalWrite(ecPow, LOW);
   /*--------------DO sensor-----------*/
+  digitalWrite(doPow, HIGH);
   //get do sensor reading
-  doSerial.print("T," + temp);
+  /*doSerial.print("T," + temp);
   doSerial.print("\r");
   doSerial.print("S," + ec);
-  doSerial.print("\r");
+  doSerial.print("\r");*/
   startMillis = millis();  //initial start time
   do {
     currentMillis = millis();
@@ -222,7 +225,7 @@ String readData() {
   }
 
   dO = String(getAverage(arr, samples));
-  digitalWrite(ecDoPow, LOW);
+  digitalWrite(doPow, LOW);
 
   /*--------------pH sensor-----------*/
   //get pH sensor reading
