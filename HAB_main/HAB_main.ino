@@ -1,8 +1,14 @@
-
 //include libraries
 #include <SoftwareSerial.h>
 #include <OneWire.h>
 #include <DallasTemperature.h>
+#include <EEPROM.h>
+int address1 = 0;                         //ID address
+int address2 = address1 + sizeof(int);    //sleep time address
+int address3 = address2 + sizeof(float);  //ph_slope address
+int address4 = address3 + sizeof(float);  //ph_intercept address
+int address5 = address4 + sizeof(float);  //chl_slope address
+int address6 = address5 + sizeof(float);  //chl_intercept address
 
 //setup temperature sensor
 #define ONE_WIRE_BUS 6                  //temperature sensor signal output to D6 of ATMEGA
@@ -18,24 +24,14 @@ SoftwareSerial doSerial(4, 5);  // do sensor TX --> D4 of atmega
 String diagnostics = "";
 int checkStatus;
 
-/*These values must be modifed for each senspak unit*/
-//calibration constants,use separate sketch for calibration and then replace these values
-/*
-********slope*******intercept
-  SP1: -   4.8779     -1.5689
-  SP2:    3.6578      0.6476
-  SP3:   - 3.4663      0.9455
-  SP4:    3.2962      1.18775
-  SP5:    3.5406      1.6359
-*/
-const float phSlope = 4.8779;--
-const float phIntercept = -1.5689;
-const float  wpOffSet = 0;
-//SensPak ID
-String ID = "1";
-//sleep time
-int sleep_length = 1;
 
+//restrieve constants from EEPROM
+int ID;
+float sleep_length;
+float phSlope;
+float phIntercept;
+float chlSlope;
+float chlIntercept;
 
 //sensor values in string
 String dataToLora = "";
@@ -65,8 +61,6 @@ float phVoltage;
 float wpVoltage;
 float chlVoltage;
 
-
-
 void setup() {
   Serial.begin(9600);
   ecSerial.begin(9600);
@@ -75,9 +69,8 @@ void setup() {
   pinMode(ecPow, OUTPUT);
   pinMode(tempPow, OUTPUT);
   pinMode(phPow, OUTPUT);
-    pinMode(doPow, OUTPUT);
+  pinMode(doPow, OUTPUT);
   pinMode(wpPow, OUTPUT);
-  //  pinMode(tdsPow, OUTPUT);
   pinMode(chlPow, OUTPUT);
 
   unsigned long startMillis;
@@ -94,7 +87,12 @@ void setup() {
   } while (currentMillis - startMillis <= diagnosticTime);
 
 
-
+  EEPROM.get(address1, ID);
+  EEPROM.get(address2, sleep_length);
+  EEPROM.get(address3, phSlope);
+  EEPROM.get(address4, phIntercept);
+  EEPROM.get(address5, chlSlope);
+  EEPROM.get(address6, chlIntercept);
 }
 
 //function to get battery level
@@ -170,7 +168,7 @@ String readData() {
   //get ec sensor reading
   digitalWrite(ecPow, HIGH);
   /*ecSerial.print("T," + temp);
-  ecSerial.print("\r");*/
+    ecSerial.print("\r");*/
   startMillis = millis();  //initial start time
 
   do {
@@ -200,9 +198,9 @@ String readData() {
   digitalWrite(doPow, HIGH);
   //get do sensor reading
   /*doSerial.print("T," + temp);
-  doSerial.print("\r");
-  doSerial.print("S," + ec);
-  doSerial.print("\r");*/
+    doSerial.print("\r");
+    doSerial.print("S," + ec);
+    doSerial.print("\r");*/
   startMillis = millis();  //initial start time
   do {
     currentMillis = millis();
@@ -245,13 +243,13 @@ String readData() {
   ph = String((phSlope * phVoltage) + phIntercept); //voltage to actual pH value
   digitalWrite(phPow, LOW);   //turn off pH sensor
 
-  /*--------------wp sensor-----------*/
+  /*--------------wp sensor-----------
   //get wp sensor reading
   digitalWrite(wpPow, HIGH);  //turn on wp sensor
   delay(1000);
   wpVoltage = analogRead(A2) * 5.00 / 1023.00;
   wp = String((wpVoltage - wpOffSet) * 400);  //calibration formula of w.p. sensor from manufacturer's spec sheet
-  digitalWrite(wpPow, LOW);  //turn off turb sensor
+  digitalWrite(wpPow, LOW);  //turn off turb sensor*/
 
   /*-------------chl sensor---------*/
   //get chl sensor reading
@@ -267,10 +265,10 @@ String readData() {
     delay(500);
   }
   chlVoltage = getAverage(arr, samples);
-  chl = String(chlVoltage);
+  chl = String((chlSlope * chlVoltage) + chlIntercept); //voltage to actual chl value
   digitalWrite(chlPow, LOW);
 
-  return stringData = ID + ","  + dataString(ec, dO, temp, ph, wp, chl) + "," + String(voltagePercent);
+  return stringData = String(ID) + ","  + dataString(ec, dO, temp, ph, wp, chl) + "," + String(voltagePercent);
 }
 
 //function to perform system diagnostic
@@ -323,7 +321,7 @@ void loop() {
     digitalWrite (i, LOW);
   }
 
-  for (int i = 0; i < (sleep_length + random(0)) ; i++) { //adjust this to extend sleep time
+  for (int i = 0; i < ((sleep_length * 450) + random(0)) ; i++) { //adjust this to extend sleep time -- 450 is the 8 sec conversion factor for sleep time
     MCUCR |= (3 << 5);
     MCUCR = (MCUCR & ~(1 << 5)) | (1 << 6);
     __asm__ __volatile("sleep"::);
