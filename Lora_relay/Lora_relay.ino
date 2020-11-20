@@ -1,8 +1,6 @@
 #include <SPI.h>
 #include <LoRa.h>       // https://github.com/sandeepmistry/arduino-LoRa
-#include <U8g2lib.h>   // https://github.com/olikraus/U8g2_Arduino 
-//#include <U8x8lib.h>
-#include <WiFi.h>
+#include <U8g2lib.h>   // https://github.com/olikraus/U8g2_Arduino
 
 // SPI LoRa Radio
 #define LORA_SCK 5        // GPIO5 - SX1276 SCK
@@ -21,12 +19,6 @@ U8G2_SSD1306_128X64_NONAME_F_SW_I2C Display(U8G2_R0, /* clock=*/ OLED_SCL, /* da
 
 String sensorReading = "";
 String receivedData = "";
-unsigned long startMillis;
-unsigned long currentMillis;
-unsigned long period;
-int id = 1;
-int mode = 0;
-byte syncWord = 0x14;
 
 void setup() {
   Serial.begin(115200);
@@ -47,15 +39,12 @@ void setup() {
 
   LoRa.setSpreadingFactor(12);
   LoRa.setTxPower(20, PA_OUTPUT_PA_BOOST_PIN);
-  LoRa.setSyncWord(syncWord);
-  //LoRa.setSignalBandwidth(125E3);
 }
 void diagnosis() {
 
   Display.begin();
   Display.enableUTF8Print();    // enable UTF8 support for the Arduino print() function
   Display.setFont(u8g2_font_6x13_tf);
-  //Display error code here
   Display.clearBuffer();
   Display.setCursor(0, 12);
   Display.print("DIAGNOSTIC:");
@@ -83,66 +72,43 @@ String receivePacket() {
   return received;
 }
 
-int startServer() {
-  const char* ssid     = "PLDT_Home_3AE40";
-  const char* password = "f7sbgeag";
-  WiFiServer server(80);
-  WiFi.begin(ssid, password);
-  while (WiFi.status() != WL_CONNECTED) {
+int getBounce(String s){
+   String dataString = s;
+   char buff[dataString.length() + 1];
+   dataString.toCharArray(buff, dataString.length() + 1);
+   char* b =  strtok(buff, ",");
+   String ctr = b;
+   return ctr.toInt();
   }
-  return 1;
-}
 
 void loop() {
-  if (mode == 0) {                                  // mode '0' for normal operation
-    if (Serial2.available()) {
-      while (Serial2.available() > 0) {
-        char serial2Char = (char)Serial2.read();
-        sensorReading += serial2Char;
-      }
-      if (sensorReading != "") {
-        if (sensorReading.indexOf('D') == 0) {
-          Display.setPowerSave(0);
-          diagnosis();
-          Display.setPowerSave(1);
-        }
-
-        else {
-          sendPacket(sensorReading);
-          Serial.println(sensorReading);
-        }
-      }
-      else {
-        Serial.println("empty");
-        delay(1000);
-      }
-      sensorReading = "";
-
+  
+  if (Serial2.available()) {                  //get serial message from ATMEGA328P
+    while (Serial2.available() > 0) {
+      char serial2Char = (char)Serial2.read();
+      sensorReading += serial2Char;
     }
-
-    else {
-
-      receivedData = receivePacket();
-
-      if (receivedData.length() > 1) {
-        Serial.println(receivedData);
-        sendPacket(receivedData);
+    if (sensorReading != "") {                //if serial is not empty do...
+      if (sensorReading.indexOf('D') == 0) {  //...print diagnostics or...
+        Display.setPowerSave(0);
+        diagnosis();
+        Display.setPowerSave(1);
       }
-
-      else if (receivedData.length() == 1) {
-        if (receivedData == String(id)) {
-          //start server
-          if (startServer() == 1) {
-            mode = 1;
-          }
+      else{                                   //...send data with initial bounce count of 0
+        sensorReading = "0," + sensorReading;
+        sendPacket(sensorReading);
         }
-      }
-
     }
+    sensorReading = "";
   }
-
-  if (mode == 1) {                //mode '1' for remote access
-    Serial.println("calibration mode");
-    Serial.println(WiFi.localIP());
+  receivedData = receivePacket();       
+  if (receivedData.length() > 1) {          //if packet is received
+    Serial.println(receivedData);
+    int bounce = 0;
+    bounce = getBounce(receivedData);       //get number of bounce--
+    if(bounce < 5){                         //if bounce count is less than 5 then send packet
+      bounce++;
+      sendPacket(String(bounce)+","+receivedData);
+    }
   }
 }
