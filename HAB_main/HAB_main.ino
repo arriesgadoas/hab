@@ -4,24 +4,41 @@
 #include <DallasTemperature.h>
 #include <EEPROM.h>
 #include "Filter.h"
+#include <avr/sleep.h>
+#include <avr/power.h>
 
-#define samples 100
+//arrays and variables for sampling
+#define samples 20
+#define ecDo_samples 10
+float arr[samples];
+float ecDo_arr[ecDo_samples];
 
-float arr[samples + 1];
-long FilterWeight = 50;
+//decalarations for filter parameters
+long FilterWeight = 20; 
 ExponentialFilter<long> ADCFilter(FilterWeight, 0);
 
-int address1 = 0;                         //ID address
-int address2 = address1 + sizeof(float);    //sleep time address
-int address3 = address2 + sizeof(float);  //ph_slope address
-int address4 = address3 + sizeof(float);  //ph_intercept address
-int address5 = address4 + sizeof(float);  //chl_slope address
-int address6 = address5 + sizeof(float);  //chl_intercept address
+//EEPROM addresses
+int address1 = 0;                                   //ID address
+int address2 = address1 + sizeof(float);            //sleep time address
+int address3 = address2 + sizeof(float);            //ph_slope address
+int address4 = address3 + sizeof(float);            //ph_intercept address
+int address5 = address4 + sizeof(float);            //chl_slope address
+int address6 = address5 + sizeof(float);            //chl_intercept address
+int address7 = (5 * sizeof(float)) + sizeof(long);  //voltage reference constant
 
-//setup temperature sensor
-#define ONE_WIRE_BUS 6                  //temperature sensor signal output to D6 of ATMEGA
-OneWire oneWire_temp(ONE_WIRE_BUS);     // Setup a oneWire instance to communicate with the temperature sensor
-DallasTemperature tempSensor(&oneWire_temp);    // Pass oneWire_temp reference to DallasTemperature library
+//constants from EEPROM
+int ID;
+float sleep_length;
+float phSlope;
+float phIntercept;
+float chlSlope;
+float chlIntercept;
+long refVoltageScale;
+
+//temperature sensor setup
+#define ONE_WIRE_BUS 6
+OneWire oneWire_temp(ONE_WIRE_BUS);
+DallasTemperature tempSensor(&oneWire_temp);
 
 //5V pins for sensors
 #define tempPow 7
@@ -29,27 +46,14 @@ DallasTemperature tempSensor(&oneWire_temp);    // Pass oneWire_temp reference t
 #define wpPow 10
 #define doPow 11
 #define chlPow 12
-#define ecPow 13
+#define ecPow 9
 
-//declare software serial ports for ec and do sensors
-/*SoftwareSerial ecSerial(2, 3); //ec sensor TX --> D2 of atmega
-SoftwareSerial doSerial(4, 5);  // do sensor TX --> D4 of atmega*/
-
-
-//diagnostic String
+//diagnostic variables
 String diagnostics = "";
 int checkStatus;
 
 
-//restrieve constants from EEPROM
-int ID;
-float sleep_length;
-float phSlope;
-float phIntercept;
-float chlSlope;
-float chlIntercept;
-
-//sensor values in string
+//sensor values in String
 String dataToLora = "";
 String ec = "";
 String dO = "";
@@ -70,53 +74,33 @@ float chlVoltage;
 
 void setup() {
   Serial.begin(9600);
-  
- // ecSerial.begin(9600);
- // doSerial.begin(9600);
-
+  EEPROM.get(address1, ID);
   pinMode(ecPow, OUTPUT);
   pinMode(tempPow, OUTPUT);
   pinMode(phPow, OUTPUT);
   pinMode(doPow, OUTPUT);
   pinMode(wpPow, OUTPUT);
   pinMode(chlPow, OUTPUT);
-  unsigned long startMillis;
-  unsigned long currentMillis;
-  unsigned long diagnosticTime;
-  startMillis = millis();  //initial start time
-  diagnosticTime = 5000;
+  pinMode(A2, OUTPUT);
 
-  do {
-    currentMillis = millis();
-    dataToLora = diagnostic();
-    Serial.println(dataToLora);
-    //startMillis = currentMillis;
-  } while (currentMillis - startMillis <= diagnosticTime);
-
-  EEPROM.get(address1, ID);
-  EEPROM.get(address2, sleep_length);
-  EEPROM.get(address3, phSlope);
-  EEPROM.get(address4, phIntercept);
-  EEPROM.get(address5, chlSlope);
-  EEPROM.get(address6, chlIntercept);
+  dataToLora = diagnostic();
+  digitalWrite(A2, HIGH);
+  delay(500);
+  digitalWrite(A2, LOW);
+  Serial.println(dataToLora);
+  delay(3000);
 }
+
 
 //function to get battery level
 float getBatLevel() {
-  float actualVoltage;/*
-  actualVoltage = readVcc(A5) //analogRead(A5) * 5.0 / 1023.00;
-  return actualVoltage;*/
-  createArray(A5);
+  float actualVoltage;
+  voltageArray(A1);
   actualVoltage = getAverage(arr, samples);
   return actualVoltage;
 }
 
-
-
-//function to check if probe head is connected
 int checkProbe() {
-  /*--------------temp sensor-----------*/
-  //get temperature reading
   digitalWrite(tempPow, HIGH);  //turn on temp sensor
   delay(1000);
   tempSensor.begin();
@@ -130,33 +114,35 @@ int checkProbe() {
     digitalWrite(tempPow, LOW);
     return 1;
   }
-
 }
 
-//function to return the final data reading in string format, simple concatenation of all sensor readings
+//dataString function
 String dataString(String sensor1, String sensor2, String sensor3, String sensor4, String sensor6) {
   String reading;
   reading = sensor1 + "," + sensor2 + "," + sensor3 + "," + sensor4 + ","  + sensor6;
   return reading;
 }
 
-void createArray(int analogPin) {
+//create array for analog sensor readings
+void voltageArray(int analogPin) {
   int raw;
   int i = 0;
   do {
     raw = filter(analogPin);
+    delay(500);
     i++;
-  } while (i < 10); //throw first ten readings
-
-  i = 0;
-
+  } while (i < 10);
+  i=0;
   do {
     raw = filter(analogPin);
-    arr[i] = readVcc(raw);
+    arr[i] = readVcc(raw); 
+//    Serial.println(arr[i]);
     i++;
-  } while (i < 100);
+    delay(100);
+  } while (i < samples);
 }
 
+//getaverage from arrays
 float getAverage(float *a, int numbers) {
   float sum = 0;
   for (int i = 0; i < numbers; i++) {
@@ -166,12 +152,14 @@ float getAverage(float *a, int numbers) {
   return average;
 }
 
+//filtering function
 int filter(int analogPin) {
   int rawValue = analogRead(analogPin);
   ADCFilter.Filter(rawValue);
   return ADCFilter.Current();
 }
 
+//get voltage reading for sensors
 float readVcc(int analog) {
   long result;
   float voltage;
@@ -185,150 +173,176 @@ float readVcc(int analog) {
 #else
   ADMUX = _BV(REFS0) | _BV(MUX3) | _BV(MUX2) | _BV(MUX1);
 #endif
-  delay(2); // Wait for Vref to settle
-  ADCSRA |= _BV(ADSC); // Convert
+  delay(2);
+  ADCSRA |= _BV(ADSC);
   while (bit_is_set(ADCSRA, ADSC));
   result = ADCL;
   result |= ADCH << 8;
-  result = 1126400L / result; // Calculate Vcc (in mV); 1126400 = 1.1*1024*1000
-  //return result;
-  voltage = ((result / 1000.00) * analog) / 1024.00;
+  EEPROM.get(address7, refVoltageScale);
+  result = refVoltageScale / result;
+  voltage = (((result / 1000.00) * analog) / 1024.00);
   return voltage;
 }
 
-
-String readData() {
-  SoftwareSerial ecSerial(2, 3); //ec sensor TX --> D2 of atmega
-  SoftwareSerial doSerial(4, 5);  // do sensor TX --> D4 of atmega
- 
+//get sensor readings
+void readData() {
+  detachInterrupt(1);
+  EEPROM.get(address3, phSlope);
+  EEPROM.get(address4, phIntercept);
+  EEPROM.get(address5, chlSlope);
+  EEPROM.get(address6, chlIntercept);
   unsigned long startMillis;
   unsigned long currentMillis;
   String stringData;
-  unsigned long ec_responseTime = 10000;
-  unsigned long do_responseTime = 10000;
-  unsigned long ph_responseTime = 10000;
-  unsigned long chl_responseTime = 10000;
+  unsigned long ec_responseTime = 0;
+  unsigned long do_responseTime = 25000;
+  unsigned long ph_responseTime = 25000;
+  unsigned long chl_responseTime = 25000;
+  unsigned long temp_responseTime = 0;//10000;
   float voltagePercent;
-  /*int samples = 30;
-    float arr[samples + 1];*/
-  voltagePercent = getBatLevel() * 100 / 3.7;
 
+  
 
-  /*--------------temp sensor-----------*/
   //get temperature reading
 
+  Serial.println("Reading temperature...");
   digitalWrite(tempPow, HIGH);  //turn on temp sensor
   tempSensor.begin();
   delay(1000);
-  tempSensor.requestTemperatures();  //get celsius temp
-  temp = tempSensor.getTempCByIndex(0); //actual temp reading in celsius
+  startMillis = millis();
+
+  do {
+    currentMillis = millis();
+    tempSensor.requestTemperatures();  //get celsius temp
+    temp = tempSensor.getTempCByIndex(0); //actual temp reading in celsius
+  } while (currentMillis - startMillis <= temp_responseTime);
+
+  for (int i = 0; i < samples; i++) {
+    tempSensor.requestTemperatures();  //get celsius temp
+    arr[i] = tempSensor.getTempCByIndex(0); //actual temp reading in celsius
+    delay(50);
+  }
+  temp = getAverage(arr, samples);
   digitalWrite(tempPow, LOW);
   delay(100);
-  /*--------------EC sensor-----------*/
-  //get ec sensor reading
-  digitalWrite(ecPow, HIGH);
-  ecSerial.begin(9600);
-  startMillis = millis();  //initial start time
 
-  do {
-    currentMillis = millis();
-    ec = "";
-    ecSerial.listen();    //listen to ecSerial port
-    delay(1000);          //wait!!
-    while (ecSerial.available() > 0) {
-      char serialChar = (char)ecSerial.read();
-      ec += serialChar;
-    }
-  } while (currentMillis - startMillis <= ec_responseTime);
-
-  for (int i = 0; i < samples; i++) {
-    while (ecSerial.available() > 0) {
-      char serialChar = (char)ecSerial.read();
-      ec += serialChar;
-    }
-    arr[i] = ec.toFloat();
-    delay(50);
-  }
-
-  ec = String(getAverage(arr, samples));
-  digitalWrite(ecPow, LOW);
-  delay(100);
-  ecSerial.end();
-  digitalWrite(2, LOW);
-  digitalWrite(3, LOW);
-  /*--------------DO sensor-----------*/
-  digitalWrite(doPow, HIGH);
-  doSerial.begin(9600);
-  //get do sensor reading
-  startMillis = millis();  //initial start time
-  do {
-    currentMillis = millis();
-    dO = "";
-    doSerial.listen();  //listen to doSerial port
-    delay(999);         //wait!! for some reason hindi pwedeng pareho sila ng delay ng unang software serial, thus 999
-    while (doSerial.available() > 0) {
-      char serialChar = (char)doSerial.read();
-      dO += serialChar;
-    }
-  } while (currentMillis - startMillis <= do_responseTime);
+//  get ec sensor reading
   
-  for (int i = 0; i < samples; i++) {
-    while (doSerial.available() > 0) {
-      char serialChar = (char)doSerial.read();
-      dO += serialChar;
+    Serial.println("Reading conductivity...");
+    digitalWrite(ecPow, HIGH);
+    SoftwareSerial ecSerial(2, 3); //ec sensor TX --> D2 of atmega
+  
+    ecSerial.begin(9600);
+  
+    delay(ec_responseTime);
+    int i = 0;
+    while(i < ecDo_samples){
+      ec = "";
+      while (ecSerial.available() > 0) {
+        char serialChar = (char)ecSerial.read();
+        ec += serialChar;
+        if (serialChar == '\r') {
+         // Serial.println(i);
+          if(isdigit(ec[0])== false){
+//              Serial.println("xxx");
+            }
+          else{
+          ecDo_arr[i] = ec.toFloat();
+//          Serial.println(ecDo_arr[i]);
+          i++;
+  
+          }
+        }
+      }
+      delay(1000);
     }
-    arr[i] = dO.toFloat();
+  
+    ec = String(getAverage(ecDo_arr, ecDo_samples));
+    digitalWrite(ecPow, LOW);
+    pinMode(2, INPUT_PULLUP);
+    pinMode(3, INPUT_PULLUP);
+    digitalWrite(2, LOW);
+    digitalWrite(3, LOW);
+    delay(100);
+    ecSerial.end();
+  
+  
+    // get DO reading
+    i = 0;
+    Serial.println("Reading dissolved oxygen...");
+    digitalWrite(doPow, HIGH);
     delay(50);
-  }
-
-  dO = String(getAverage(arr, samples));
-  digitalWrite(doPow, LOW);
-  delay(100);
-  doSerial.end();
-  digitalWrite(4, LOW);
-  digitalWrite(5, LOW);
-  /*--------------pH sensor-----------*/
-  //get pH sensor reading
+    SoftwareSerial doSerial(4, 5);  // do sensor TX --> D4 of atmega
+    doSerial.begin(9600);
+  
+    //delay(5000);
+   while(i < ecDo_samples){
+      dO = "";
+     // doSerial.println("T,27");
+      while (doSerial.available() > 0) {
+        char serialChar = (char)doSerial.read();
+        dO += serialChar;
+        if (serialChar == '\r'){
+          if(isdigit(dO[0])==false){
+            }
+  
+          else{
+            ecDo_arr[i] = dO.toFloat();
+//            Serial.println(ecDo_arr[i]);
+            i++;
+            }
+          }
+      }
+  
+      delay(1000);
+    }
+  
+    dO = String(getAverage(ecDo_arr, ecDo_samples));
+    digitalWrite(doPow, LOW);
+  
+    delay(100);
+    doSerial.end();
+    delay(100);
+    i = 0;
+  
+  //  //get pH sensor reading
+  Serial.println("Reading pH...");
   digitalWrite(phPow, HIGH); //turn on pH sensor
-  //delay(100);
-  /*startMillis = millis();
-    do {
-    currentMillis = millis();
-    analogRead(A0);
-    } while (currentMillis - startMillis <= ph_responseTime);
-  */
-  Serial.begin(9600);
-  createArray(A0);
+
+  while(i<2){ //let sensor settle
+    voltageArray(A0);
+    delay(500);
+    i++;
+    }
+  voltageArray(A0);
   phVoltage = getAverage(arr, samples);
-  Serial.print("phVoltage:"); Serial.println(phVoltage);
   ph = String((phSlope * phVoltage) + phIntercept); //voltage to actual pH value
   digitalWrite(phPow, LOW);   //turn off pH sensor
   delay(100);
-  /*--------------wp sensor-----------
-    //get wp sensor reading
-    digitalWrite(wpPow, HIGH);  //turn on wp sensor
-    delay(1000);
-    wpVoltage = analogRead(A2) * 5.00 / 1023.00;
-    wp = String((wpVoltage - wpOffSet) * 400);  //calibration formula of w.p. sensor from manufacturer's spec sheet
-    digitalWrite(wpPow, LOW);  //turn off turb sensor*/
 
-  /*-------------chl sensor---------*/
   //get chl sensor reading
-  digitalWrite(chlPow, HIGH);
-  startMillis = millis();
-  do {
-    currentMillis = millis();
-    analogRead(A4);
-  } while (currentMillis - startMillis <= chl_responseTime);
 
-  createArray(A4);
+  Serial.println("Reading chl...");
+  digitalWrite(chlPow, HIGH);
+  voltageArray(A4);
   chlVoltage = getAverage(arr, samples);
-  Serial.print("chlVoltage:"); Serial.println(chlVoltage); Serial.end();
   chl = String((chlSlope * chlVoltage) + chlIntercept); //voltage to actual chl value
   digitalWrite(chlPow, LOW);
+  delay(100);
 
-  return stringData = "spdata," + String(ID) + ","  + dataString(ec, dO, temp, ph, chl) + "," + String(voltagePercent);
+  Serial.println("Reading battery level...");
+  voltagePercent = 100 * (1 - (4.2 - getBatLevel()));
+  
+  stringData = "spdata," + String(ID) + ","  + dataString(ec, dO, temp, ph, chl) + "," + String(voltagePercent);
+  digitalWrite(A2, HIGH);
+  delay(500);
+  digitalWrite(A2, LOW);
+  Serial.println(stringData);
+  //pinMode(2, INPUT_PULLUP);
+  delay(100);
+  sleep_disable();
 }
+
 
 //function to perform system diagnostic
 String diagnostic() {
@@ -336,7 +350,7 @@ String diagnostic() {
   int probeStatus;
   float batVoltage;
   batVoltage = getBatLevel();
-  if (batVoltage <= 3.0) {
+  if (batVoltage <= 3.2) {
     checkStatus =  0;
     stringData = "D:ER";
   }
@@ -355,48 +369,16 @@ String diagnostic() {
   return stringData;
 }
 
-ISR(WDT_vect) {
+void enterSleep() {
+  sleep_enable();//Enabling sleep mode
+  attachInterrupt(1, readData, LOW);//attaching a interrupt to pin d2
+  delay(1000);
+  set_sleep_mode(SLEEP_MODE_PWR_DOWN);//Setting the sleep mode, in our case full sleep
+  sleep_cpu();//activating sleep mode
 }
 
 void loop() {
-  //sleep mode declarations
-  WDTCSR = (24);
-  WDTCSR = (33); //32 -- 4 sec, 33 -- 8 sec
-  WDTCSR |= (1 << 6);
-  SMCR |= (1 << 2);
-  SMCR |= 1;
-
-  byte old_ADCSRA;
-  old_ADCSRA = ADCSRA;
-  ADCSRA = 0;
-
-  delay(100);
-  Serial.end();
-  // pinMode(1, OUTPUT);
-  // digitalWrite(1, LOW);
-  for (byte i = 0; i <= 13; i++)
-  {
-    pinMode (i, OUTPUT);    // changed as per below
-    digitalWrite (i, LOW);
-  }
-
-  for (int i = 0; i < (round(sleep_length * 450) + random(0, 5)) ; i++) { //adjust this to extend sleep time -- 450 is the 8 sec conversion factor for sleep time
-    MCUCR |= (3 << 5);
-    MCUCR = (MCUCR & ~(1 << 5)) | (1 << 6);
-    __asm__ __volatile("sleep"::);
-  }
-  /*SoftwareSerial ecSerial(2, 3); //ec sensor TX --> D2 of atmega
-  SoftwareSerial doSerial(4, 5);  // do sensor TX --> D4 of atmega*/
-//  ecSerial.begin(9600);
-//  doSerial.begin(9600); 
-  ADCSRA = old_ADCSRA;
-  dataToLora = readData();
-  Serial.begin(9600);
   delay(1000);
-  Serial.println(dataToLora);
-
-  ec = "";
-  dO = "";
-
-
+  pinMode(3, INPUT_PULLUP);
+  enterSleep();
 }

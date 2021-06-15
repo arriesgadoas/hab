@@ -4,7 +4,8 @@ int address2 = address1 + sizeof(float);    //sleep address
 int address3 = address2 + sizeof(float);  //ph_slope address
 int address4 = address3 + sizeof(float);  //ph_intercept address
 int address5 = address4 + sizeof(float);  //chl_slope address
-int address6 = address5 + sizeof(float);  //chl_intercept address\
+int address6 = address5 + sizeof(float);  //chl_intercept address
+int address7 = (5*sizeof(float)) + sizeof(long);
 
 int data1;
 float data2;
@@ -12,6 +13,7 @@ float data3;
 float data4;
 float data5;
 float data6;
+long data7;
 
 void setup() {
   Serial.begin(9600);
@@ -26,6 +28,8 @@ void setup() {
   EEPROM.get(address5, data5);
   delay(200);
   EEPROM.get(address6, data6);
+  delay(200);
+  EEPROM.get(address7, data7);
   Serial.print("ID: ");
   Serial.println(data1);
   Serial.print("SLEEP: ");
@@ -38,6 +42,8 @@ void setup() {
   Serial.println(data5);
   Serial.print("CHL INTERCEPT: ");
   Serial.println(data6);
+  Serial.print("REFERENCE VOLTAGE: ");
+  Serial.println(data7);
 }
 
 void loop() {

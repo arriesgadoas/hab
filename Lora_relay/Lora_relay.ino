@@ -5,6 +5,8 @@
 // SPI LoRa Radio
 #define LORA_SCK 5        // GPIO5 - SX1276 SCK
 #define LORA_MISO 19     // GPIO19 - SX1276 MISO
+
+
 #define LORA_MOSI 27    // GPIO27 -  SX1276 MOSI
 #define LORA_CS 18     // GPIO18 -   SX1276 CS
 #define LORA_RST 14   // GPIO14 -    SX1276 RST
@@ -19,6 +21,8 @@ U8G2_SSD1306_128X64_NONAME_F_SW_I2C Display(U8G2_R0, /* clock=*/ OLED_SCL, /* da
 
 String sensorReading = "";
 String receivedData = "";
+
+int bounce = 0;
 
 void setup() {
   Serial.begin(115200);
@@ -71,18 +75,61 @@ String receivePacket() {
   }
   return received;
 }
+int getBounce(String string) {
+  String dataString = string;
 
-int getBounce(String s){
-   String dataString = s;
-   char buff[dataString.length() + 1];
-   dataString.toCharArray(buff, dataString.length() + 1);
-   char* b =  strtok(buff, ",");
-   String ctr = b;
-   return ctr.toInt();
-  }
+  char buff[dataString.length() + 1];
+  dataString.toCharArray(buff, dataString.length() + 1);
+  char* a =  strtok(buff, ",");
+  char* b =  strtok(NULL, ",");
+  char* c =  strtok(NULL, ",");
+  char* d =  strtok(NULL, ",");
+  char* e =  strtok(NULL, ",");
+  char* f =  strtok(NULL, ",");
+  char* g =  strtok(NULL, ",");
+  char* h =  strtok(NULL, ",");
+  char* i = strtok(NULL, "\r");
+  String x = i;
+  return x.toInt();
+}
+
+String insertNewBounce(String string, int bounceCtr) {
+  String dataString = string;
+  char buff[dataString.length() + 1];
+  dataString.toCharArray(buff, dataString.length() + 1);
+  char* a =  strtok(buff, ",");
+  String checker = a;
+  char* b =  strtok(NULL, ",");
+  String ID = b;
+  char* c =  strtok(NULL, ",");
+  String ec = c;
+  char* d =  strtok(NULL, ",");
+  String dO = d;
+  char* e =  strtok(NULL, ",");
+  String temp = e;
+  char* f =  strtok(NULL, ",");
+  String ph = f;
+  char* g =  strtok(NULL, ",");
+  String chl = g;
+  char* h =  strtok(NULL, ",");
+  String volt = h;
+  char* i = strtok(NULL, "\r");
+  String bounce = i;
+ 
+  String parsed =  checker + "," + ID + "," + ec + "," + dO+ "," + temp + "," + ph + "," + chl + "," + volt + "," + String(bounceCtr);
+  return parsed;
+}
+/*int getBounce(String s){
+  String dataString = s;
+  char buff[dataString.length() + 1];
+  dataString.toCharArray(buff, dataString.length() + 1);
+  char* b =  strtok(buff, ",");
+  String ctr = b;
+  return ctr.toInt();
+  }*/
 
 void loop() {
-  
+
   if (Serial2.available()) {                  //get serial message from ATMEGA328P
     while (Serial2.available() > 0) {
       char serial2Char = (char)Serial2.read();
@@ -94,21 +141,26 @@ void loop() {
         diagnosis();
         Display.setPowerSave(1);
       }
-      else{                                   //...send data with initial bounce count of 0
-        sensorReading = "0," + sensorReading;
+      else {                                  //...send data with initial bounce count of 0
+        sensorReading.trim();
+        sensorReading = sensorReading + "0";
+        Serial.println(sensorReading);
         sendPacket(sensorReading);
-        }
+      }
     }
     sensorReading = "";
   }
-  receivedData = receivePacket();       
+  receivedData = receivePacket();
   if (receivedData.length() > 1) {          //if packet is received
     Serial.println(receivedData);
-    int bounce = 0;
-    bounce = getBounce(receivedData);       //get number of bounce--
-    if(bounce < 5){                         //if bounce count is less than 5 then send packet
+    
+    bounce = getBounce(receivedData);       //get number of bounces--
+    
+    if (bounce < 5) {                       //if bounce count is less than 5 then send packet
       bounce++;
-      sendPacket(String(bounce)+","+receivedData);
+      receivedData =  insertNewBounce(receivedData, bounce);/*receivedData+","+String(bounce);*/
+      sendPacket(receivedData);
     }
   }
+
 }

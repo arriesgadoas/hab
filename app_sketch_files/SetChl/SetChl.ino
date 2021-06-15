@@ -1,11 +1,14 @@
-#include "Filter.h"
+  #include "Filter.h"
 #include <SoftwareSerial.h>
+#include <EEPROM.h>
 #define power 12
 #define data A4
 #define samples 100
+float final_arr[20];
 float arr[samples + 1];
-
-long FilterWeight = 50;
+int address = (5 * sizeof(float)) + sizeof(long);
+long FilterWeight = 20;
+long refVoltageScale;
 ExponentialFilter<long> ADCFilter(FilterWeight, 0);
 void setup() {
   // put your setup code here, to run once:
@@ -15,10 +18,12 @@ void setup() {
 }
 
 void loop() {
-  // put your main code here, to run repeatedly:
- voltageArray(data);
-  Serial.println(getAverage(arr, samples));
-  delay(100);
+  
+  for (int i = 0; i < 20; i++) {
+    voltageArray(data);
+    final_arr[i] = getAverage(arr, samples);
+  }
+  Serial.println(getAverage(final_arr, samples), 2);
 
 }
 
@@ -28,7 +33,7 @@ void voltageArray(int analogPin) {
   do {
     raw = filter(analogPin);
     i++;
-  } while (i < 10); //throw first ten readings
+  } while (i < 100); //throw first ten readings
 
   i = 0;
 
@@ -36,7 +41,7 @@ void voltageArray(int analogPin) {
     raw = filter(analogPin);
     arr[i] = readVcc(raw);
     i++;
-  } while (i < 100);
+  } while (i < samples);
 }
 
 float getAverage(float *a, int numbers) {
@@ -51,11 +56,6 @@ float getAverage(float *a, int numbers) {
 int filter(int analogPin) {
   int rawValue = analogRead(analogPin);
   ADCFilter.Filter(rawValue);
-
-  /*TimePlot Plot;
-    Plot.SendData("Raw", rawValue);
-    Plot.SendData("Filtered", ADCFilter.Current());
-    Serial.println(ADCFilter.Current());*/
   return ADCFilter.Current();
 }
 
@@ -77,8 +77,8 @@ float readVcc(int analog) {
   while (bit_is_set(ADCSRA, ADSC));
   result = ADCL;
   result |= ADCH << 8;
-  result = 1126400L / result; // Calculate Vcc (in mV); 1126400 = 1.1*1024*1000
-  //return result;
+  EEPROM.get(address, refVoltageScale);
+  result = refVoltageScale / result;
   voltage = ((result / 1000.00) * analog) / 1024.00;
   return voltage;
 }

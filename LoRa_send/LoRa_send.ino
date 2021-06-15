@@ -40,7 +40,7 @@ unsigned long period;
 
 void setup() {
   //delay(1000);
-  esp_sleep_enable_ext0_wakeup(GPIO_NUM_13, 1);
+  
   Serial.begin(115200);
   Serial2.begin(9600, SERIAL_8N1, 13, 15);
   while (!Serial);
@@ -62,7 +62,8 @@ void setup() {
   LoRa.setTxPower(20, PA_OUTPUT_PA_BOOST_PIN);
   //LoRa.setSignalBandwidth(62.5E3);
 
-
+  pinMode(4, OUTPUT);
+  digitalWrite(4, HIGH);
 
   startMillis = millis();  //initial start time
   period = 3000;
@@ -85,7 +86,7 @@ void setup() {
       Display.setCursor(0, 30);
       Display.print(sensorReading);
       Display.sendBuffer();
-    }
+    }  
 
     else {
       LoRa.beginPacket();
@@ -96,7 +97,9 @@ void setup() {
 
   } while (currentMillis - startMillis <= period);
   Display.clearDisplay();
-  gpio_pulldown_en(GPIO_NUM_13);
+  
+  esp_sleep_enable_ext0_wakeup(GPIO_NUM_13, 1);
+  //gpio_pulldown_en(GPIO_NUM_13);
   esp_deep_sleep_start();
 }
 
