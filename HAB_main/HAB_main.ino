@@ -12,9 +12,10 @@
 #define ecDo_samples 10
 float arr[samples];
 float ecDo_arr[ecDo_samples];
+float sal_arr[ecDo_samples];
 
 //decalarations for filter parameters
-long FilterWeight = 20; 
+long FilterWeight = 20;
 ExponentialFilter<long> ADCFilter(FilterWeight, 0);
 
 //EEPROM addresses
@@ -56,6 +57,8 @@ int checkStatus;
 //sensor values in String
 String dataToLora = "";
 String ec = "";
+String sal = "";
+String ecSal = "";
 String dO = "";
 String temp = "";
 String ph = "";
@@ -117,9 +120,9 @@ int checkProbe() {
 }
 
 //dataString function
-String dataString(String sensor1, String sensor2, String sensor3, String sensor4, String sensor6) {
+String dataString(String sensor1, String sensor5, String sensor2, String sensor3, String sensor4, String sensor6) {
   String reading;
-  reading = sensor1 + "," + sensor2 + "," + sensor3 + "," + sensor4 + ","  + sensor6;
+  reading = sensor1 + "," + sensor5 + "," + sensor2 + "," + sensor3 + "," + sensor4 + ","  + sensor6;
   return reading;
 }
 
@@ -132,11 +135,11 @@ void voltageArray(int analogPin) {
     delay(500);
     i++;
   } while (i < 10);
-  i=0;
+  i = 0;
   do {
     raw = filter(analogPin);
-    arr[i] = readVcc(raw); 
-//    Serial.println(arr[i]);
+    arr[i] = readVcc(raw);
+    //    Serial.println(arr[i]);
     i++;
     delay(100);
   } while (i < samples);
@@ -184,6 +187,24 @@ float readVcc(int analog) {
   return voltage;
 }
 
+
+//
+String getValuebyIndex(String s, char delimiter, int index) {
+  int found = 0;
+  int strIndex[] = {0, -1};
+
+  int maxIndex = s.length();
+
+  for (int i = 0; i <= maxIndex && found <= index; i++) {
+    if (s.charAt(i) == delimiter || i == maxIndex) {
+      found++;
+      strIndex[0] = strIndex[1] + 1;
+      strIndex[1] = (i == maxIndex) ? i + 1 : i;
+    }
+  }
+  return found > index ? s.substring(strIndex[0], strIndex[1]) : "";
+}
+
 //get sensor readings
 void readData() {
   detachInterrupt(1);
@@ -201,7 +222,7 @@ void readData() {
   unsigned long temp_responseTime = 0;//10000;
   float voltagePercent;
 
-  
+
 
   //get temperature reading
 
@@ -222,98 +243,108 @@ void readData() {
     arr[i] = tempSensor.getTempCByIndex(0); //actual temp reading in celsius
     delay(50);
   }
-  temp = getAverage(arr, samples);
+  //temp = getAverage(arr, samples);
+  temp = String(25.00);
   digitalWrite(tempPow, LOW);
   delay(100);
 
-//  get ec sensor reading
-  
-    Serial.println("Reading conductivity...");
-    digitalWrite(ecPow, HIGH);
-    SoftwareSerial ecSerial(2, 3); //ec sensor TX --> D2 of atmega
-  
-    ecSerial.begin(9600);
-  
-    delay(ec_responseTime);
-    int i = 0;
-    while(i < ecDo_samples){
-      ec = "";
-      while (ecSerial.available() > 0) {
-        char serialChar = (char)ecSerial.read();
-        ec += serialChar;
-        if (serialChar == '\r') {
-         // Serial.println(i);
-          if(isdigit(ec[0])== false){
-//              Serial.println("xxx");
-            }
-          else{
+  //  get ec sensor reading
+
+  Serial.println("Reading conductivity and salinity...");
+  digitalWrite(ecPow, HIGH);
+  SoftwareSerial ecSerial(2, 3); //ec sensor TX --> D2 of atmega
+
+  ecSerial.begin(9600);
+
+  delay(ec_responseTime);
+  int i = 0;
+  while (i < ecDo_samples) {
+    ecSal = "";
+    ecSerial.println("T,"+temp);
+    while (ecSerial.available() > 0) {
+      char serialChar = (char)ecSerial.read();
+      ecSal += serialChar;
+
+      if (serialChar == '\r') {
+        //Serial.println(ecSal);
+        // Serial.println(i);
+        if (isdigit(ecSal[0]) == false) {
+          // Serial.println(ecSal);
+        }
+        else {
+          ec = "";
+          sal = "";
+          ec = getValuebyIndex(ecSal, ',', 0);
+          sal = getValuebyIndex(ecSal, ',', 1);
+          sal_arr[i] = sal.toFloat();
           ecDo_arr[i] = ec.toFloat();
-//          Serial.println(ecDo_arr[i]);
+          // Serial.println(ecDo_arr[i]);
+          // Serial.println(sal_arr[i]);
           i++;
-  
-          }
         }
       }
-      delay(1000);
     }
-  
-    ec = String(getAverage(ecDo_arr, ecDo_samples));
-    digitalWrite(ecPow, LOW);
-    pinMode(2, INPUT_PULLUP);
-    pinMode(3, INPUT_PULLUP);
-    digitalWrite(2, LOW);
-    digitalWrite(3, LOW);
-    delay(100);
-    ecSerial.end();
-  
-  
-    // get DO reading
-    i = 0;
-    Serial.println("Reading dissolved oxygen...");
-    digitalWrite(doPow, HIGH);
-    delay(50);
-    SoftwareSerial doSerial(4, 5);  // do sensor TX --> D4 of atmega
-    doSerial.begin(9600);
-  
-    //delay(5000);
-   while(i < ecDo_samples){
-      dO = "";
-     // doSerial.println("T,27");
-      while (doSerial.available() > 0) {
-        char serialChar = (char)doSerial.read();
-        dO += serialChar;
-        if (serialChar == '\r'){
-          if(isdigit(dO[0])==false){
-            }
-  
-          else{
-            ecDo_arr[i] = dO.toFloat();
-//            Serial.println(ecDo_arr[i]);
-            i++;
-            }
-          }
+    delay(1000);
+  }
+
+  ec = String(getAverage(ecDo_arr, ecDo_samples));
+  sal = String(getAverage(sal_arr, ecDo_samples));
+  digitalWrite(ecPow, LOW);
+  pinMode(2, INPUT_PULLUP);
+  pinMode(3, INPUT_PULLUP);
+  digitalWrite(2, LOW);
+  digitalWrite(3, LOW);
+  delay(100);
+  ecSerial.end();
+
+
+  // get DO reading
+  i = 0;
+  Serial.println("Reading dissolved oxygen...");
+  digitalWrite(doPow, HIGH);
+  delay(50);
+  SoftwareSerial doSerial(4, 5);  // do sensor TX --> D4 of atmega
+  doSerial.begin(9600);
+  //delay(5000);
+  while (i < ecDo_samples) {
+    dO = "";
+    doSerial.println("T,"+temp);
+    while (doSerial.available() > 0) {
+      char serialChar = (char)doSerial.read();
+      dO += serialChar;
+      if (serialChar == '\r') {
+        if (isdigit(dO[0]) == false) {
+         // Serial.println(dO);
+        }
+
+        else {
+          ecDo_arr[i] = dO.toFloat();
+         // Serial.println(ecDo_arr[i]);
+          i++;
+        }
       }
-  
-      delay(1000);
     }
-  
-    dO = String(getAverage(ecDo_arr, ecDo_samples));
-    digitalWrite(doPow, LOW);
-  
-    delay(100);
-    doSerial.end();
-    delay(100);
-    i = 0;
-  
+
+    delay(1000);
+  }
+
+  dO = String(getAverage(ecDo_arr, ecDo_samples));
+  digitalWrite(doPow, LOW);
+
+  delay(100);
+  doSerial.end();
+  delay(100);
+  i = 0;
+
   //  //get pH sensor reading
   Serial.println("Reading pH...");
   digitalWrite(phPow, HIGH); //turn on pH sensor
 
-  while(i<2){ //let sensor settle
+  while (i < 2) { //let sensor settle
     voltageArray(A0);
     delay(500);
     i++;
-    }
+  }
   voltageArray(A0);
   phVoltage = getAverage(arr, samples);
   ph = String((phSlope * phVoltage) + phIntercept); //voltage to actual pH value
@@ -332,8 +363,8 @@ void readData() {
 
   Serial.println("Reading battery level...");
   voltagePercent = 100 * (1 - (4.2 - getBatLevel()));
-  
-  stringData = "spdata," + String(ID) + ","  + dataString(ec, dO, temp, ph, chl) + "," + String(voltagePercent);
+
+  stringData = "spdata," + String(ID) + ","  + dataString(ec, sal, dO, temp, ph, chl) + "," + String(voltagePercent);
   digitalWrite(A2, HIGH);
   delay(500);
   digitalWrite(A2, LOW);
