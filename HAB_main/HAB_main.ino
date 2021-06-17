@@ -207,7 +207,7 @@ String getValuebyIndex(String s, char delimiter, int index) {
 
 //get sensor readings
 void readData() {
-  detachInterrupt(1);
+  detachInterrupt(0);
   EEPROM.get(address3, phSlope);
   EEPROM.get(address4, phIntercept);
   EEPROM.get(address5, chlSlope);
@@ -255,8 +255,9 @@ void readData() {
   SoftwareSerial ecSerial(2, 3); //ec sensor TX --> D2 of atmega
 
   ecSerial.begin(9600);
-
-  delay(ec_responseTime);
+  delay(100);
+  ecSerial.println("o,s,1");
+  delay(1000);
   int i = 0;
   while (i < ecDo_samples) {
     ecSal = "";
@@ -401,15 +402,16 @@ String diagnostic() {
 }
 
 void enterSleep() {
+  delay(500);
   sleep_enable();//Enabling sleep mode
-  attachInterrupt(1, readData, LOW);//attaching a interrupt to pin d2
-  delay(1000);
+  attachInterrupt(0, readData, LOW);//attaching a interrupt to pin d3
+  delay(500);
   set_sleep_mode(SLEEP_MODE_PWR_DOWN);//Setting the sleep mode, in our case full sleep
   sleep_cpu();//activating sleep mode
 }
 
 void loop() {
   delay(1000);
-  pinMode(3, INPUT_PULLUP);
+  pinMode(2, INPUT_PULLUP);
   enterSleep();
 }

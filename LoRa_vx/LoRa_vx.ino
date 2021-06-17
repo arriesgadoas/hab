@@ -45,12 +45,13 @@ void setup() {
   
   Serial.begin(115200);
   Serial2.begin(9600, SERIAL_8N1, 13, 15);
-  
-  //setup rtc
+
   Serial.println("I'm awake.");
   //setup LoRa
   setupLoRa();
 
+  //setup rtc
+  setupRTC();
   delay(1000);
   if (Serial2.available()) {                  //get serial message from ATMEGA328P
     while (Serial2.available() > 0) {
@@ -67,7 +68,7 @@ void setup() {
       }
 
       else {                                  //...send data with initial bounce count of 0
-        // sendPacket(sensorReading);  
+         sendPacket(sensorReading);  
       }
     }
     sensorReading = "";
@@ -93,7 +94,7 @@ void setup() {
   // }
   
   Serial.println("Going to sleep");
-  setupRTC();  
+  
   rtc.setAlarm1(rtc.now() + TimeSpan(0, 0, 1, 0), DS3231_A1_Minute);
   esp_sleep_enable_ext0_wakeup(GPIO_NUM_33, 1);
   esp_deep_sleep_start();

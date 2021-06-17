@@ -65,7 +65,7 @@ void setup() {
       }
 
       else {                                  //...send data 
-         delay(random(3000));
+         delay(random(100,3000));
          sendPacket(sensorReading);  
       }
     }
