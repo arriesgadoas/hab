@@ -3,11 +3,16 @@
 #include <LoRa.h>
 #include <SPI.h>
 
-RTC_DATA_ATTR int level = 1;
-RTC_DATA_ATTR int configured = 0;
-
 //declare RTC instance
 RTC_DS3231 rtc;
+
+RTC_DATA_ATTR int level = 1;
+RTC_DATA_ATTR int sleepMinute;
+RTC_DATA_ATTR int sleepSecond;
+RTC_DATA_ATTR bool configured = false;
+RTC_DATA_ATTR bool readMode = false;
+RTC_DATA_ATTR Ds3231Alarm1Mode alarmMode;
+
 
 //diagnostic LEDs
 #define batOK 21
@@ -25,41 +30,72 @@ RTC_DS3231 rtc;
 
 String message = "";
 String sensorReading = "";
-String key = "";
-String payload = "";
+String packet = "";
 int senderLevel;
 int messageDirection;
 
 
 
 void setup() {
-  Serial.println("I'm awake.");
+  Serial.begin(115200);
+  Serial2.begin(9600, SERIAL_8N1, 13, 15);
   pinMode(batOK, OUTPUT);
   pinMode(batER, OUTPUT);
   pinMode(sensorOK, OUTPUT);
   pinMode(sensorER, OUTPUT);
 
-//  EEPROM.begin(2);
-//  int configured = EEPROM.read(1);
-//  int level = EEPROM.read(0);
-  
-  Serial.begin(115200);
-  Serial2.begin(9600, SERIAL_8N1, 13, 15);
-
-  Serial.println("I'm awake.");
   //setup LoRa
   setupLoRa();
 
   //setup rtc
   setupRTC();
   delay(1000);
+
+  readATMEGA();
+  packet = receivePacket();
+  //check if received packet is from senspak
+  if (getValuebyIndex(packet, ',', 0) == "spdata") {
+    Serial.println("VALID PACKET");
+    if (getValuebyIndex(packet, ',', 1) == "C") {
+      if (configured == false) {
+        if (getValuebyIndex(packet, ',', 2) == "1") {
+          Serial.println("C is ON");
+          readMode = true;
+          sleepSecond = 10;
+          alarmMode = DS3231_A1_Second;
+        }
+        else {
+
+        }
+      }
+    }
+  }
+  //  else {
+  //    Serial.println("INVALID PACKET");
+  //  }
+  if (configured == false || readMode == false) {
+    setup();
+  }
+  else {
+    Serial.println("Going to sleep...");
+    rtc.setAlarm1(rtc.now() + TimeSpan(0, 0, 0, sleepSecond), alarmMode);
+    esp_sleep_enable_ext0_wakeup(GPIO_NUM_33, 1);
+    esp_deep_sleep_start();
+  }
+
+}
+
+
+/*---------------------------------------------*/
+void readATMEGA() {
   if (Serial2.available()) {                  //get serial message from ATMEGA328P
+    //Serial.println("Get senspak reading...");
     while (Serial2.available() > 0) {
       char serial2Char = (char)Serial2.read();
       sensorReading += serial2Char;
     }
     sensorReading.trim();
-    Serial.println(sensorReading);
+    //Serial.println(sensorReading);
     if (sensorReading != "") {
       //if serial is not empty do...
       if (sensorReading.indexOf('D') == 0) {  //...print diagnostics or...
@@ -68,38 +104,12 @@ void setup() {
       }
 
       else {                                  //...send data with initial bounce count of 0
-         sendPacket(sensorReading);  
+        sendPacket(sensorReading);
       }
     }
     sensorReading = "";
   }
-
-  // while(configured == 0) {
-  //     message = receivePacket();
-  //     if (message.length() > 0){
-  //       key = getValuebyIndex(message, ',', 0);
-  //       if(key == "SP"){
-  //          messageDirection = getValuebyIndex(message, ',', 1);
-  //          senderLevel = getValuebyIndex(message, ',', 2);
-  //          if(messageDirection == 1){
-  //            level = senderLevel + 1;
-  //          }
-  //          else{
-  //            if(senderLevel > 0){
-               
-  //            }
-  //          }          
-  //         }
-  //       }
-  // }
-  
-  Serial.println("Going to sleep");
-  
-  rtc.setAlarm1(rtc.now() + TimeSpan(0, 0, 1, 0), DS3231_A1_Minute);
-  esp_sleep_enable_ext0_wakeup(GPIO_NUM_33, 1);
-  esp_deep_sleep_start();
 }
-
 /*---------------------------------------------*/
 void diagnosis(String string) {
   String bat = getValuebyIndex(string, ':', 1);
@@ -124,37 +134,6 @@ void diagnosis(String string) {
   digitalWrite(sensorER, LOW);
   digitalWrite(sensorOK, LOW);
 }
-
-// /*---------------------------------------------*/
-// int setSleepTime(int slTime, int newSlTime) {
-//   if (slTime != newSlTime) {
-//     EEPROM.write(1, newSlTime);
-//     EEPROM.commit();
-//   }
-//   return EEPROM.read(1);
-// }
-
-// /*---------------------------------------------*/
-// int setupLevel(int lvl, int senderlvl) {
-//   if (lvl == 0) {
-//     lvl =  senderlvl + 1;
-//     EEPROM.write(0, lvl);
-//     //EEPROM.write(1, slTime);
-//     EEPROM.commit();
-//     //sendPacket("S," + String(lvl) + "," + String(slTime));
-//   }
-
-//   else {
-//     if (senderlvl < lvl) {
-//       lvl = senderlvl + 1;
-//       EEPROM.write(0, lvl);
-//       // EEPROM.write(1, slTime);
-//       EEPROM.commit();
-//       // sendPacket("S," + String(lvl) + "," + String(slTime));
-//     }
-//   }
-//   return EEPROM.read(0);
-// }
 
 /*---------------------------------------------*/
 void setupRTC() {
@@ -229,5 +208,6 @@ String getValuebyIndex(String s, char delimiter, int index) {
 /*---------------------------------------------*/
 void loop() {
   // put your main code here, to run repeatedly:
-
+  Serial.println("xxx");
+  delay(1000);
 }
