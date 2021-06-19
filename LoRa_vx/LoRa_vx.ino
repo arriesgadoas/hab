@@ -10,9 +10,11 @@ RTC_DATA_ATTR int level = 1;
 RTC_DATA_ATTR int sleepMinute;
 RTC_DATA_ATTR int sleepSecond;
 RTC_DATA_ATTR bool configured = false;
+RTC_DATA_ATTR bool normalMode = false;
 RTC_DATA_ATTR bool readMode = false;
+RTC_DATA_ATTR bool standby = true;
 RTC_DATA_ATTR Ds3231Alarm1Mode alarmMode;
-
+RTC_DATA_ATTR bool diagnostics = false;
 
 //diagnostic LEDs
 #define batOK 21
@@ -39,53 +41,87 @@ int messageDirection;
 void setup() {
   Serial.begin(115200);
   Serial2.begin(9600, SERIAL_8N1, 13, 15);
-  pinMode(batOK, OUTPUT);
-  pinMode(batER, OUTPUT);
-  pinMode(sensorOK, OUTPUT);
-  pinMode(sensorER, OUTPUT);
 
   //setup LoRa
   setupLoRa();
 
-  //setup rtc
-  setupRTC();
-  delay(1000);
 
-  readATMEGA();
-  packet = receivePacket();
+  //setup rtc
+  
+  
+  delay(1000);
+  if (diagnostics == false) {
+    pinMode(batOK, OUTPUT);
+    pinMode(batER, OUTPUT);
+    pinMode(sensorOK, OUTPUT);
+    pinMode(sensorER, OUTPUT);
+    while (diagnostics == false) {
+      readATMEGA();
+    }
+  }
+
+  if (normalMode == true){
+    readATMEGA();
+    }
+
+//  while (packet == "" & readMode == false) {
+//    packet = receivePacket();
+//  }
+
+  while (standby == true) {
+    packet = receivePacket();
+  }
+  packet.trim();
+  Serial.println(packet);
+
   //check if received packet is from senspak
   if (getValuebyIndex(packet, ',', 0) == "spdata") {
     Serial.println("VALID PACKET");
+    //If continuous reading commands are received (on/off)
     if (getValuebyIndex(packet, ',', 1) == "C") {
+      //if senspak unit is not yet configured do the following
       if (configured == false) {
+        //continuous reading ON
         if (getValuebyIndex(packet, ',', 2) == "1") {
-          Serial.println("C is ON");
-          readMode = true;
-          sleepSecond = 10;
+          standby = true;
+          sleepSecond = 1;
           alarmMode = DS3231_A1_Second;
+          Serial.println("TAKING SENSOR READINGS");
+          setupRTC();
+          rtc.setAlarm1(rtc.now() + TimeSpan(0, 0, 0, sleepSecond), alarmMode);
+          sleep();
         }
+        //continuous reading OFF
         else {
-
+          standby = true;
+          Serial.println("WAIT FOR OTHER SETUP/SYNC COMMAND");
+          delay(500);
+          setup();
         }
       }
+      else {
+        //do nothing if senspak is already configured
+      }
     }
-  }
-  //  else {
-  //    Serial.println("INVALID PACKET");
-  //  }
-  if (configured == false || readMode == false) {
-    setup();
+    packet = "";
   }
   else {
-    Serial.println("Going to sleep...");
-    rtc.setAlarm1(rtc.now() + TimeSpan(0, 0, 0, sleepSecond), alarmMode);
-    esp_sleep_enable_ext0_wakeup(GPIO_NUM_33, 1);
-    esp_deep_sleep_start();
+    //if packet is invalid redo setup function
+    packet = "";
+    standby = true;
+    Serial.println("RECURSION INVALID PACKET");
+    delay(500);
+    setup();
   }
 
 }
 
 
+/*---------------------------------------------*/
+void sleep() {
+  esp_sleep_enable_ext0_wakeup(GPIO_NUM_33, 1);
+  esp_deep_sleep_start();
+}
 /*---------------------------------------------*/
 void readATMEGA() {
   if (Serial2.available()) {                  //get serial message from ATMEGA328P
@@ -133,6 +169,8 @@ void diagnosis(String string) {
   digitalWrite(batOK, LOW);
   digitalWrite(sensorER, LOW);
   digitalWrite(sensorOK, LOW);
+
+  diagnostics = true;
 }
 
 /*---------------------------------------------*/
@@ -177,6 +215,7 @@ String receivePacket() {
     while (LoRa.available()) {
       received = LoRa.readString();
     }
+    standby = false;
   }
   return received;
 }
