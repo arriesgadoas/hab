@@ -244,8 +244,13 @@ void readData() {
     delay(50);
   }
   temp = getAverage(arr, samples);
+<<<<<<< HEAD
   Serial.println(temp);
 //  temp = String(25.00);
+=======
+  //temp = String(25.00);
+  Serial.println(temp);
+>>>>>>> ef8b5ffb62b88bee51c4d9cc86efc932823c71c9
   digitalWrite(tempPow, LOW);
   delay(100);
 
@@ -262,7 +267,7 @@ void readData() {
   int i = 0;
   while (i < ecDo_samples) {
     ecSal = "";
-    ecSerial.println("T,"+temp);
+    //ecSerial.println("T,"+temp);
     while (ecSerial.available() > 0) {
       char serialChar = (char)ecSerial.read();
       ecSal += serialChar;
