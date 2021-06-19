@@ -139,7 +139,7 @@ void voltageArray(int analogPin) {
   do {
     raw = filter(analogPin);
     arr[i] = readVcc(raw);
-    //    Serial.println(arr[i]);
+//    Serial.println(arr[i]);
     i++;
     delay(100);
   } while (i < samples);
@@ -243,8 +243,9 @@ void readData() {
     arr[i] = tempSensor.getTempCByIndex(0); //actual temp reading in celsius
     delay(50);
   }
-  //temp = getAverage(arr, samples);
-  temp = String(25.00);
+  temp = getAverage(arr, samples);
+  Serial.println(temp);
+//  temp = String(25.00);
   digitalWrite(tempPow, LOW);
   delay(100);
 
@@ -290,6 +291,8 @@ void readData() {
 
   ec = String(getAverage(ecDo_arr, ecDo_samples));
   sal = String(getAverage(sal_arr, ecDo_samples));
+  Serial.println(ec);
+  Serial.println(sal);
   digitalWrite(ecPow, LOW);
   pinMode(2, INPUT_PULLUP);
   pinMode(3, INPUT_PULLUP);
@@ -309,7 +312,7 @@ void readData() {
   //delay(5000);
   while (i < ecDo_samples) {
     dO = "";
-    doSerial.println("T,"+temp);
+    //doSerial.println("T,"+temp);
     while (doSerial.available() > 0) {
       char serialChar = (char)doSerial.read();
       dO += serialChar;
@@ -330,8 +333,12 @@ void readData() {
   }
 
   dO = String(getAverage(ecDo_arr, ecDo_samples));
+  Serial.println(dO);
   digitalWrite(doPow, LOW);
-
+  pinMode(4, INPUT_PULLUP);
+  pinMode(5, INPUT_PULLUP);
+  digitalWrite(4, LOW);
+  digitalWrite(5, LOW);
   delay(100);
   doSerial.end();
   delay(100);
@@ -349,6 +356,7 @@ void readData() {
   voltageArray(A0);
   phVoltage = getAverage(arr, samples);
   ph = String((phSlope * phVoltage) + phIntercept); //voltage to actual pH value
+  Serial.println(ph);
   digitalWrite(phPow, LOW);   //turn off pH sensor
   delay(100);
 
@@ -359,12 +367,13 @@ void readData() {
   voltageArray(A4);
   chlVoltage = getAverage(arr, samples);
   chl = String((chlSlope * chlVoltage) + chlIntercept); //voltage to actual chl value
+  Serial.println(chl);
   digitalWrite(chlPow, LOW);
   delay(100);
 
   Serial.println("Reading battery level...");
   voltagePercent = 100 * (1 - (4.2 - getBatLevel()));
-
+  Serial.println(voltagePercent);
   stringData = "spdata," + String(ID) + ","  + dataString(ec, sal, dO, temp, ph, chl) + "," + String(voltagePercent);
   digitalWrite(A2, HIGH);
   delay(500);
@@ -411,7 +420,8 @@ void enterSleep() {
 }
 
 void loop() {
-  delay(1000);
-  pinMode(2, INPUT_PULLUP);
-  enterSleep();
+//  delay(1000);
+//  pinMode(2, INPUT_PULLUP);
+//  enterSleep();
+readData();
 }
