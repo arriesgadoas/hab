@@ -53,16 +53,14 @@ void loop() {
     char incomingByte = Serial.read();
     packet +=  incomingByte;
     if (incomingByte == '\r') {
-      Serial.println(packet);
+        Serial.println(packet);
+        
     }
   }
-
   LoRa.beginPacket();
-  LoRa.print(packet);
-  LoRa.endPacket();
-
- packet = "";
-  
+        LoRa.print(packet);
+        LoRa.endPacket();
+        packet = "";
 }
 
 

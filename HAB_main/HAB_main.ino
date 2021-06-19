@@ -244,13 +244,8 @@ void readData() {
     delay(50);
   }
   temp = getAverage(arr, samples);
-<<<<<<< HEAD
-  Serial.println(temp);
-//  temp = String(25.00);
-=======
   //temp = String(25.00);
   Serial.println(temp);
->>>>>>> ef8b5ffb62b88bee51c4d9cc86efc932823c71c9
   digitalWrite(tempPow, LOW);
   delay(100);
 
