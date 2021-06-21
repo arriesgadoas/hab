@@ -46,6 +46,7 @@ void setup() {
   Serial2.begin(9600, SERIAL_8N1, 13, 15);
   
   //setup rtc
+  setupRTC(); 
   Serial.println("I'm awake.");
   //setup LoRa
   setupLoRa();
@@ -57,7 +58,7 @@ void setup() {
       sensorReading += serial2Char;
     }
     sensorReading.trim();
-    Serial.println(sensorReading);
+    //Serial.println(sensorReading);
     if (sensorReading != "") {
       //if serial is not empty do...
       if (sensorReading.indexOf('D') == 0) {  //...print diagnostics or...
@@ -65,56 +66,22 @@ void setup() {
       }
 
       else {                                  //...send data 
-         delay(random(100,3000));
          sendPacket(sensorReading);  
       }
     }
     sensorReading = "";
   }
 
-  if(configured == 0)
-  {
-    while(true){
-        
-      }
-    }
-
-  else{
-    do{
-      relayMode();
-      }
-    
-    }
-  Serial.println("Going to sleep");
-  setupRTC();  
+  
+  //Serial.println("Going to sleep");
+   
   rtc.setAlarm1(rtc.now() + TimeSpan(0, 0, 1, 0), DS3231_A1_Minute);
   esp_sleep_enable_ext0_wakeup(GPIO_NUM_33, 1);
   esp_deep_sleep_start();
 }
 
 /*---------------------------------------------*/
-void relayMode(){
-  String packet = receivePacket();
-  //check if valid
-  String checker = getValuebyIndex(packet, ',', 0);
-  if(checker == spdata){
-    //get sender level
-    String senderLevel = getValuebyIndex(packet, ',', 2);
-    //get command
-    String command = getValuebyIndex(packet, ',', 1);
-    if(command == "SL"){
-      
-      }
 
-    if(command == "TR"){
-      
-      }
-
-    if(command == "SR"){
-      
-      }
-    }
-  }
 /*---------------------------------------------*/
 void diagnosis(String string) {
   String bat = getValuebyIndex(string, ':', 1);
@@ -155,6 +122,7 @@ void setupRTC() {
   rtc.writeSqwPinMode(DS3231_OFF);
   rtc.clearAlarm(1);
   rtc.clearAlarm(2);
+  rtc.disableAlarm(1);
   rtc.disableAlarm(2);
 }
 

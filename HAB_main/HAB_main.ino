@@ -122,7 +122,7 @@ int checkProbe() {
 //dataString function
 String dataString(String sensor1, String sensor5, String sensor2, String sensor3, String sensor4, String sensor6) {
   String reading;
-  reading = sensor1 + "," + sensor5 + "," + sensor2 + "," + sensor3 + "," + sensor4 + ","  + sensor6;
+  reading = sensor1 + sensor5 + "," + sensor2 + "," + sensor3 + "," + sensor4 + ","  + sensor6;
   return reading;
 }
 
@@ -374,13 +374,12 @@ void readData() {
   Serial.println("Reading battery level...");
   voltagePercent = 100 * (1 - (4.2 - getBatLevel()));
   Serial.println(voltagePercent);
-  stringData = "spdata," + String(ID) + ","  + dataString(ec, sal, dO, temp, ph, chl) + "," + String(voltagePercent);
+  stringData = "spdata,R," + String(ID) + ","  + dataString(ec, sal, dO, temp, ph, chl) + "," + String(voltagePercent);
   digitalWrite(A2, HIGH);
   delay(500);
   digitalWrite(A2, LOW);
   Serial.println(stringData);
-  //pinMode(2, INPUT_PULLUP);
-  delay(100);
+  //delay(3000);
   sleep_disable();
 }
 
@@ -420,8 +419,7 @@ void enterSleep() {
 }
 
 void loop() {
-//  delay(1000);
-//  pinMode(2, INPUT_PULLUP);
-//  enterSleep();
-readData();
+  delay(1000);
+  pinMode(2, INPUT_PULLUP);
+  enterSleep();
 }

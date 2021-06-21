@@ -6,7 +6,7 @@
 //declare RTC instance
 RTC_DS3231 rtc;
 
-RTC_DATA_ATTR int level = 1;
+RTC_DATA_ATTR int level = 100;
 RTC_DATA_ATTR int sleepMinute;
 RTC_DATA_ATTR int sleepSecond;
 RTC_DATA_ATTR bool configured = false;
@@ -14,6 +14,9 @@ RTC_DATA_ATTR bool normalMode = false;
 RTC_DATA_ATTR bool standby = true;
 RTC_DATA_ATTR Ds3231Alarm1Mode alarmMode;
 RTC_DATA_ATTR bool diagnostics = false;
+RTC_DATA_ATTR int relayModeTime = 180000;
+RTC_DATA_ATTR bool levelSet = false;
+RTC_DATA_ATTR bool sleepTimeSet = false;
 
 //diagnostic LEDs
 #define batOK 21
@@ -35,65 +38,113 @@ String packet = "";
 int senderLevel;
 int messageDirection;
 int delay1; //delay before transmitting sensor readings
-
+int long startMillis = 0;
+int long standByTimer = 0;
 
 
 void setup() {
   Serial.begin(115200);
   Serial2.begin(9600, SERIAL_8N1, 13, 15);
   delay(50);
-  Serial.println("START");
   //setup LoRa
   setupLoRa();
   //setup rtc
   setupRTC();
 
-  
-  
   if (diagnostics == false) {
+    Serial.println("WAITING FOR DIAGNOSIS");
     pinMode(batOK, OUTPUT);
     pinMode(batER, OUTPUT);
     pinMode(sensorOK, OUTPUT);
     pinMode(sensorER, OUTPUT);
     while (diagnostics == false) {
-      readATMEGA();
+      readSendSensorReading();
     }
   }
+  //CONFIGURED MODE
+  if (configured == true) {
+    packet="";
+    readSendSensorReading();
+    //send set-up packet for unconfigured senspak units
+    sendPacket("S," + String(level) + ","+String(sleepMinute));
+    startMillis = millis();
+    standby = true;
+    do {
 
-  
-  readATMEGA();
-  
+      if (standby == true) {
+        Serial.println("WAITING FOR PACKETS");
+        while (standby == true) {
+          packet = receivePacket();
+        }
+      }
+      packet.trim();
+      Serial.println(packet);
+      if (packet == "") {
+        Serial.println("empty");
+      }
+      if (checkValid(packet) == 1) {
+        if (getCommand(packet) == "R") {
+          standby = true;
+          Serial.println("RECEIVED READINGS");
+          int senderLevel = getSenderLevel(packet).toInt();
+          if (senderLevel ==  level + 1) {
+            sendPacket(packet);
+          }
 
-  while (standby == true) {
-    //packet = receivePacket();
-    while (Serial.available() > 0)
-    {
-      char incomingByte = Serial.read();
-      packet +=  incomingByte;
-      if (incomingByte == '\r') {
-        delay(500);
-        Serial.println(packet);
-        standby = false;
+          else {
+            standby = true;
+            Serial.println("LOW LEVEL. IGNORE PACKET");
+            delay(500);
+            setup();
+          }
+
+        }
+
+        if (getCommand(packet) == "SL") {
+          packet = "";
+
+          sendPacket("spdata,SL");
+          standby = false;
+          Serial.println("ENTER SLEEP MODE: " + String(sleepMinute) + " mins.");
+          alarmMode = DS3231_A1_Minute;
+          standByTimer = startMillis - millis();
+          rtc.setAlarm1(rtc.now() + TimeSpan(0, 0, sleepMinute, 0), alarmMode);
+          sleepESP32();
+
+        }
+
       }
 
-    }
+      else {
+        standby = true;
+        packet = "";
+        Serial.println("INVALID PACKET");
+        delay(500);
+        setup();
+      }
+    } while (millis() - startMillis < relayModeTime);
   }
 
 
+  //SETUP MODE
+  if (configured == false) {
+    readSendSensorReading();
+    if (standby == true) {
+      Serial.println("WAITING FOR INSTRUCTIONS");
+      while (standby == true) {
+        packet = receivePacket();
+      }
+    }
 
-  packet.trim();
-  Serial.println(packet);
+    packet.trim();
+    Serial.println(packet);
 
-  //check if received packet is from senspak
-  if (getValuebyIndex(packet, ',', 0) == "spdata") {
-    Serial.println("VALID PACKET");
-    //If continuous reading commands are received (on/off)
-    if (getValuebyIndex(packet, ',', 1) == "C") {
-      //if senspak unit is not yet configured do the following
-      if (configured == false) {
-        //continuous reading ON
+    if (checkValid(packet) == 1) {
+      if (getCommand(packet) == "C") {
         if (getValuebyIndex(packet, ',', 2) == "1") {
+          packet = "";
           standby = true;
+          readSendSensorReading();
           sleepSecond = 3;
           alarmMode = DS3231_A1_Second;
           Serial.println("TAKING SENSOR READINGS");
@@ -101,43 +152,87 @@ void setup() {
           sleepESP32();
         }
       }
-    }
-    //If set-up/sleepTime request command is received
-    if (getValuebyIndex(packet, ',', 1) == "S") {
-      if (configured == true) {
-        if (getValuebyIndex(packet, ',', 2) == "n") {
-          sendPacket("spdata,S," + String(level));
+
+      if (getCommand(packet) == "S") {
+        sleepMinute = getSleepTime(packet).toInt();
+        if (getSenderLevel(packet).toInt() < level) {
+          level = getSenderLevel(packet).toInt();
+        }
+        levelSet = true;
+        sleepTimeSet = true;
+        standby = true;
+        sendPacket("spdata,S,"+String(level)+","+String(sleepMinute));
+        packet = "";
+        Serial.println("SLEEPTIME = " + String(sleepMinute));
+        Serial.println("LEVEL = " + String(level));
+        delay(500);
+        setup();
+      }
+
+      if (getCommand(packet) == "SL") {
+        sendPacket("spdata,SL");
+        if (sleepTimeSet == true & levelSet == true) {
           packet = "";
+          configured = true;
+          alarmMode = DS3231_A1_Minute;
+          Serial.println("CONFIGURED AND GOING TO SLEEP");
+          rtc.setAlarm1(rtc.now() + TimeSpan(0, 0, sleepMinute, 0), alarmMode);
+          sleepESP32();
+        }
+
+        else {
           standby = true;
+          packet = "";
+          Serial.println("CAN'T SLEEP. NEED CONFIGURATION");
           delay(500);
           setup();
         }
       }
     }
-    packet = "";
+    else {
+      packet = "";
+      standby = true;
+      Serial.println("INVALID PACKET");
+      delay(500);
+      setup();
+    }
   }
-  else {
-    //if packet is invalid redo setup function
-    packet = "";
-    standby = true;
-    Serial.println("RECURSION INVALID PACKET");
-    delay(500);
-    setup();
-  }
-
 }
 
 
+
+/*---------------------------------------------*/
+int checkValid(String s) {
+  if (getValuebyIndex(s, ',', 0) == "spdata") {
+    return 1;
+  }
+  else {
+    return 0;
+  }
+}
+/*---------------------------------------------*/
+String getCommand(String s) {
+  return getValuebyIndex(s, ',', 1);
+}
+/*---------------------------------------------*/
+String getSenderLevel(String s) {
+  return getValuebyIndex(s, ',', 2);
+}
+
+/*---------------------------------------------*/
+String getSleepTime(String s) {
+  return getValuebyIndex(s, ',', 3);
+}
+
 /*---------------------------------------------*/
 void sleepESP32() {
-  Serial.println("Going to sleep.");
+  Serial.println("internal sleep check");
   esp_sleep_enable_ext0_wakeup(GPIO_NUM_33, 1);
   esp_deep_sleep_start();
 }
 /*---------------------------------------------*/
-void readATMEGA() {
+void readSendSensorReading() {
   delay(1000);
-  Serial.println("Reading ATMEGA");
   if (Serial2.available()) {                  //get serial message from ATMEGA328P
     //Serial.println("Get senspak reading...");
     while (Serial2.available() > 0) {
@@ -154,6 +249,8 @@ void readATMEGA() {
       }
 
       else {                                  //...send data with initial bounce count of 0
+//        delay1 = random(3000);
+//        delay(delay1);
         sendPacket(sensorReading);
       }
     }
@@ -234,14 +331,17 @@ String receivePacket() {
     }
     standby = false;
   }
+  received.trim();
   return received;
 }
 
 /*---------------------------------------------*/
 void sendPacket(String packet) {
+  delay(1000);
   LoRa.beginPacket();
   LoRa.print(packet);
   LoRa.endPacket();
+  Serial.println("PACKET SENT");
 }
 
 /*---------------------------------------------*/
@@ -264,6 +364,7 @@ String getValuebyIndex(String s, char delimiter, int index) {
 /*---------------------------------------------*/
 void loop() {
   // put your main code here, to run repeatedly:
-  Serial.println("xxx");
-  delay(1000);
+  packet = "";
+  delay(500);
+  setup();
 }
