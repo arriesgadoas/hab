@@ -122,7 +122,7 @@ int checkProbe() {
 //dataString function
 String dataString(String sensor1, String sensor5, String sensor2, String sensor3, String sensor4, String sensor6) {
   String reading;
-  reading = sensor1 + sensor5 + "," + sensor2 + "," + sensor3 + "," + sensor4 + ","  + sensor6;
+  reading = sensor1 + "," + sensor5 + "," + sensor2 + "," + sensor3 + "," + sensor4 + ","  + sensor6;
   return reading;
 }
 
@@ -356,6 +356,9 @@ void readData() {
   voltageArray(A0);
   phVoltage = getAverage(arr, samples);
   ph = String((phSlope * phVoltage) + phIntercept); //voltage to actual pH value
+  if(ph == " NAN"){
+    ph = "0.00";
+    }
   Serial.println(ph);
   digitalWrite(phPow, LOW);   //turn off pH sensor
   delay(100);
@@ -367,6 +370,9 @@ void readData() {
   voltageArray(A4);
   chlVoltage = getAverage(arr, samples);
   chl = String((chlSlope * chlVoltage) + chlIntercept); //voltage to actual chl value
+  if(chl == " NAN"){
+    ph = "0.00";
+    }
   Serial.println(chl);
   digitalWrite(chlPow, LOW);
   delay(100);
@@ -374,7 +380,7 @@ void readData() {
   Serial.println("Reading battery level...");
   voltagePercent = 100 * (1 - (4.2 - getBatLevel()));
   Serial.println(voltagePercent);
-  stringData = "spdata,R," + String(ID) + ","  + dataString(ec, sal, dO, temp, ph, chl) + "," + String(voltagePercent);
+  stringData = "83,0," + String(ID) + ","  + dataString(ec, sal, dO, temp, ph, chl) + "," + String(voltagePercent);
   digitalWrite(A2, HIGH);
   delay(500);
   digitalWrite(A2, LOW);
