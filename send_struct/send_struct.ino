@@ -25,7 +25,7 @@ typedef struct r{
   byte key;
   byte command;
   byte id;
-  unsigned long ec;
+  float ec;
   byte sal;
   float dO;
   float temp;
@@ -36,30 +36,7 @@ typedef struct r{
   byte sleepTime;
 };
 
-  struct r sensorReading;
-
-//const int unionSize = sizeof(sensorReading);
-//
-//typedef union loraPacket{
-//  sensorReading packetData;
-//  byte byteArray[unionSize];
-//  }
-
-//String getValuebyIndex(String s, char delimiter, int index) {
-//  int found = 0;
-//  int strIndex[] = {0, -1};
-//
-//  int maxIndex = s.length();
-//
-//  for (int i = 0; i <= maxIndex && found <= index; i++) {
-//    if (s.charAt(i) == delimiter || i == maxIndex) {
-//      found++;
-//      strIndex[0] = strIndex[1] + 1;
-//      strIndex[1] = (i == maxIndex) ? i + 1 : i;
-//    }
-//  }
-//  return found > index ? s.substring(strIndex[0], strIndex[1]) : "";
-//}
+struct r sensorReading;
 
 void setup() {
   //delay(1000);
@@ -82,7 +59,7 @@ void setup() {
   //LoRa.setSignalBandwidth(62.5E3);
 
   //strcpy(sensorReading.key ,"sp");
-  sensorReading.key = 82;
+  sensorReading.key = 83;
   sensorReading.command = 1;
   sensorReading.id = 2;
   sensorReading.ec = 34500;

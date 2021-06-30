@@ -34,31 +34,6 @@ typedef struct r {
 
 struct r sensorReading;
 
-String sendToRpi;
-String ec;
-String sal;
-String dO;
-String temp;
-String pH;
-String chl;
-String volts;
-String id;
-
-void commandPacket(byte c, byte l, byte s){
-  sensorReading.key = 83;
-  sensorReading.command = c;
-  sensorReading.id = 0;
-  sensorReading.ec = 0.00;
-  sensorReading.sal = 0;
-  sensorReading.dO = 0.00;
-  sensorReading.temp = 0.00;
-  sensorReading.pH = 0.00;
-  sensorReading.chl = 0.00;
-  sensorReading.volts = 0.00;
-  sensorReading.level = l;
-  sensorReading.sleepTime = s;
-}
-
 void setup() {
   Serial.begin(115200);
   while (!Serial);;
@@ -79,43 +54,29 @@ void setup() {
   // Send and receive radios need to be set the same
   LoRa.setSpreadingFactor(12);  // ranges from 6-12, default 7 see API docs
   //LoRa.setSyncWord(syncWord);
-  commandPacket(0,0,59);
-  LoRa.beginPacket();
-  LoRa.write((uint8_t*)&sensorReading, sizeof(sensorReading));
-  LoRa.endPacket();
-  delay(5000);
-  commandPacket(1,0,0);
-  LoRa.beginPacket();
-  LoRa.write((uint8_t*)&sensorReading, sizeof(sensorReading));
-  LoRa.endPacket();
-  delay(5000);
+  
 }
 
 void loop() {
   // try to parse packet
-
+   
   int packetSize = LoRa.parsePacket ();
   if (packetSize) // Only read if there is some data to read..
   {
     LoRa.readBytes((uint8_t *)&sensorReading, packetSize);
     if (sensorReading.key = 83) {
-      id = String(sensorReading.id);
-      ec = String(sensorReading.ec);
-      sal = String(sensorReading.sal);
-      dO = String(sensorReading.dO);
-      temp = String(sensorReading.temp);
-      pH = String(sensorReading.pH);
-      chl = String(sensorReading.chl);
-      volts = String(sensorReading.volts);
-      Serial.println("spdata," + id + ',' + ec + ',' + sal + ',' + dO + ',' + temp + ',' + pH + ',' + chl + ',' + volts);
-      sendToRpi = "";
-      ec= "";
-      sal= "";
-      dO= "";
-      temp= "";
-      pH= "";
-      chl= "";
-      volts= "";
+      Serial.print("key:");Serial.println(String(sensorReading.key));
+      Serial.print("command:");Serial.println(String(sensorReading.command));
+      Serial.print("id:");Serial.println(String(sensorReading.id));
+       Serial.print("ec:");Serial.println(sensorReading.ec);
+       Serial.print("sal:");Serial.println(sensorReading.sal);
+       Serial.print("dO:");Serial.println(sensorReading.dO);
+       Serial.print("temp:");Serial.println(sensorReading.temp);
+       Serial.print("pH:");Serial.println(sensorReading.pH);
+       Serial.print("chl:");Serial.println(sensorReading.chl);
+       Serial.print("volts:");Serial.println(sensorReading.volts);
+      Serial.print("level:");Serial.println(sensorReading.level);
+      Serial.print("sleepTime:");Serial.println(sensorReading.sleepTime);
     }
   }
 }
