@@ -48,32 +48,19 @@ void setup() {
 }
 
 void loop() {
-  while (Serial.available() > 0)
-  {
-    char incomingByte = Serial.read();
-    packet +=  incomingByte;
-    if (incomingByte == '\r') {
+  if (Serial.available()) {
+    while (Serial.available() > 0)
+    {
+      char incomingByte = Serial.read();
+      packet +=  incomingByte;
+      if (incomingByte == '\r') {
         Serial.println(packet);
-        
+      }
     }
+    
   }
   LoRa.beginPacket();
-        LoRa.print(packet);
-        LoRa.endPacket();
-        packet = "";
+  LoRa.print(packet);
+  LoRa.endPacket();
+  packet = "";
 }
-
-
-
-
-
-// Display Info
-//Display.clearBuffer();
-//Display.clearDisplay();
-//Display.setCursor(0, 12);
-//Display.print("Sent data:");
-//Display.setCursor(0, 30);
-// Display.print("(" + String(dataCount) + ")");
-//Display.setCursor(0, 48);
-//Display.print(sensorReading);
-//Display.sendBuffer();

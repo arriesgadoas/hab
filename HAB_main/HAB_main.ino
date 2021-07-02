@@ -122,7 +122,7 @@ int checkProbe() {
 //dataString function
 String dataString(String sensor1, String sensor5, String sensor2, String sensor3, String sensor4, String sensor6) {
   String reading;
-  reading = sensor1 + sensor5 + "," + sensor2 + "," + sensor3 + "," + sensor4 + ","  + sensor6;
+  reading = sensor1 + "," + sensor5 + "," + sensor2 + "," + sensor3 + "," + sensor4 + ","  + sensor6;
   return reading;
 }
 
@@ -257,12 +257,13 @@ void readData() {
 
   ecSerial.begin(9600);
   delay(100);
-  ecSerial.println("o,s,1");
+  
   delay(1000);
   int i = 0;
   while (i < ecDo_samples) {
     ecSal = "";
     //ecSerial.println("T,"+temp);
+    ecSerial.println("o,s,1");
     while (ecSerial.available() > 0) {
       char serialChar = (char)ecSerial.read();
       ecSal += serialChar;
@@ -310,9 +311,12 @@ void readData() {
   SoftwareSerial doSerial(4, 5);  // do sensor TX --> D4 of atmega
   doSerial.begin(9600);
   //delay(5000);
+ 
+  startMillis = millis();
+  do{}while(millis()-startMillis < 240000);
   while (i < ecDo_samples) {
     dO = "";
-    //doSerial.println("T,"+temp);
+    doSerial.println("T,"+temp);
     while (doSerial.available() > 0) {
       char serialChar = (char)doSerial.read();
       dO += serialChar;
@@ -348,14 +352,26 @@ void readData() {
   Serial.println("Reading pH...");
   digitalWrite(phPow, HIGH); //turn on pH sensor
 
-  while (i < 2) { //let sensor settle
-    voltageArray(A0);
-    delay(500);
+  startMillis = millis();
+  do{  //let sensor settle
+    analogRead(A0);
+    Serial.println("Reading ph...");
+    delay(1000);
     i++;
-  }
+  }while(millis() - startMillis <60000); 
+
+  int x = 0;
+  while(x < 2){
+    voltageArray(A0);
+    x++;
+    }
   voltageArray(A0);
   phVoltage = getAverage(arr, samples);
+  
   ph = String((phSlope * phVoltage) + phIntercept); //voltage to actual pH value
+  if(ph == " NAN"){
+    ph == "0";
+    }
   Serial.println(ph);
   digitalWrite(phPow, LOW);   //turn off pH sensor
   delay(100);
@@ -367,6 +383,9 @@ void readData() {
   voltageArray(A4);
   chlVoltage = getAverage(arr, samples);
   chl = String((chlSlope * chlVoltage) + chlIntercept); //voltage to actual chl value
+  if(chl == " NAN"){
+    chl == "0";
+    }
   Serial.println(chl);
   digitalWrite(chlPow, LOW);
   delay(100);
@@ -374,7 +393,7 @@ void readData() {
   Serial.println("Reading battery level...");
   voltagePercent = 100 * (1 - (4.2 - getBatLevel()));
   Serial.println(voltagePercent);
-  stringData = "spdata,R," + String(ID) + ","  + dataString(ec, sal, dO, temp, ph, chl) + "," + String(voltagePercent);
+  stringData = "83,0," + String(ID) + ","  + dataString(ec, sal, dO, temp, ph, chl) + "," + String(voltagePercent);
   digitalWrite(A2, HIGH);
   delay(500);
   digitalWrite(A2, LOW);
@@ -419,7 +438,8 @@ void enterSleep() {
 }
 
 void loop() {
-  delay(1000);
-  pinMode(2, INPUT_PULLUP);
-  enterSleep();
+delay(1000);
+pinMode(2, INPUT_PULLUP);
+enterSleep();
+ // readData();
 }

@@ -25,7 +25,7 @@ typedef struct r{
   byte key;
   byte command;
   byte id;
-  unsigned long ec;
+  float ec;
   byte sal;
   float dO;
   float temp;
@@ -80,11 +80,13 @@ void setup() {
   LoRa.setSpreadingFactor(12);
   LoRa.setTxPower(20, PA_OUTPUT_PA_BOOST_PIN);
   //LoRa.setSignalBandwidth(62.5E3);
+}
 
+void loop() {
   //strcpy(sensorReading.key ,"sp");
-  sensorReading.key = 82;
-  sensorReading.command = 1;
-  sensorReading.id = 2;
+  sensorReading.key = 83;
+  sensorReading.command = 0;
+  sensorReading.id = 453;
   sensorReading.ec = 34500;
   sensorReading.sal= 50;
   sensorReading.dO= 9.08;
@@ -92,11 +94,8 @@ void setup() {
   sensorReading.pH= 14;
   sensorReading.chl= 100;
   sensorReading.volts = 100;
-  sensorReading.level= 5;
-  sensorReading.sleepTime= 60;
-}
-
-void loop() {
+  sensorReading.level= 0;
+  sensorReading.sleepTime= 59;
   LoRa.beginPacket();
   LoRa.write((uint8_t*)&sensorReading, sizeof(sensorReading));
   LoRa.endPacket();

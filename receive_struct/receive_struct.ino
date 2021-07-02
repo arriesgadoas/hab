@@ -21,7 +21,7 @@ typedef struct r {
   byte key;
   byte command;
   byte id;
-  unsigned long ec;
+  float ec;
   byte sal;
   float dO;
   float temp;
@@ -36,7 +36,7 @@ struct r sensorReading;
 
 void setup() {
   Serial.begin(115200);
-  while (!Serial);;
+  while (!Serial);
 
   // Very important for SPI pin configuration!
   SPI.begin(LORA_SCK, LORA_MISO, LORA_MOSI, LORA_CS);
