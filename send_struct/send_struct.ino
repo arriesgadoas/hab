@@ -36,30 +36,7 @@ typedef struct r{
   byte sleepTime;
 };
 
-  struct r sensorReading;
-
-//const int unionSize = sizeof(sensorReading);
-//
-//typedef union loraPacket{
-//  sensorReading packetData;
-//  byte byteArray[unionSize];
-//  }
-
-//String getValuebyIndex(String s, char delimiter, int index) {
-//  int found = 0;
-//  int strIndex[] = {0, -1};
-//
-//  int maxIndex = s.length();
-//
-//  for (int i = 0; i <= maxIndex && found <= index; i++) {
-//    if (s.charAt(i) == delimiter || i == maxIndex) {
-//      found++;
-//      strIndex[0] = strIndex[1] + 1;
-//      strIndex[1] = (i == maxIndex) ? i + 1 : i;
-//    }
-//  }
-//  return found > index ? s.substring(strIndex[0], strIndex[1]) : "";
-//}
+struct r sensorReading;
 
 void setup() {
   //delay(1000);
@@ -85,8 +62,13 @@ void setup() {
 void loop() {
   //strcpy(sensorReading.key ,"sp");
   sensorReading.key = 83;
+<<<<<<< HEAD
   sensorReading.command = 0;
   sensorReading.id = 453;
+=======
+  sensorReading.command = 1;
+  sensorReading.id = 2;
+>>>>>>> 629981fc4ac07392330fd06d003677b107bcc856
   sensorReading.ec = 34500;
   sensorReading.sal= 50;
   sensorReading.dO= 9.08;

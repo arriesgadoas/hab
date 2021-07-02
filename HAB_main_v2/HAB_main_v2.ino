@@ -1,11 +1,14 @@
 //include libraries
-#include <SoftwareSerial.h>
+//#include <SoftwareSerial.h>
+#include "Senspak.h"
 #include <OneWire.h>
 #include <DallasTemperature.h>
 #include <EEPROM.h>
 #include "Filter.h"
 #include <avr/sleep.h>
 #include <avr/power.h>
+
+Senspak sp(true);
 
 //arrays and variables for sampling
 #define samples 20
@@ -45,9 +48,10 @@ DallasTemperature tempSensor(&oneWire_temp);
 #define tempPow 7
 #define phPow 8
 #define wpPow 10
-#define doPow 11
+//#define doPow 11
+
 #define chlPow 12
-#define ecPow 9
+//#define ecPow 9
 
 //diagnostic variables
 String diagnostics = "";
@@ -75,17 +79,21 @@ float phVoltage;
 float wpVoltage;
 float chlVoltage;
 
+//instantiate Senspak class
+
+
 void setup() {
   Serial.begin(9600);
   EEPROM.get(address1, ID);
-  pinMode(ecPow, OUTPUT);
+//  pinMode(ecPow, OUTPUT);
   pinMode(tempPow, OUTPUT);
   pinMode(phPow, OUTPUT);
-  pinMode(doPow, OUTPUT);
+//  pinMode(doPow, OUTPUT);
   pinMode(wpPow, OUTPUT);
   pinMode(chlPow, OUTPUT);
   pinMode(A2, OUTPUT);
-
+  sp.setDoPowPin(11, false);
+sp.setEcPowPin(9, false);
   dataToLora = diagnostic();
   digitalWrite(A2, HIGH);
   delay(500);
@@ -252,18 +260,17 @@ void readData() {
   //  get ec sensor reading
 
   Serial.println("Reading conductivity and salinity...");
-  digitalWrite(ecPow, HIGH);
-  SoftwareSerial ecSerial(2, 3); //ec sensor TX --> D2 of atmega
-
+  sp.setEcPowPin(true);
+  //SoftwareSerial ecSerial(2, 3); //ec sensor TX --> D2 of atmega
+  SoftwareSerial ecSerial = sp.setEcSerial(2,3); 
   ecSerial.begin(9600);
   delay(100);
-  
+  ecSerial.println("o,s,1");
   delay(1000);
   int i = 0;
   while (i < ecDo_samples) {
     ecSal = "";
     //ecSerial.println("T,"+temp);
-    ecSerial.println("o,s,1");
     while (ecSerial.available() > 0) {
       char serialChar = (char)ecSerial.read();
       ecSal += serialChar;
@@ -294,7 +301,7 @@ void readData() {
   sal = String(getAverage(sal_arr, ecDo_samples));
   Serial.println(ec);
   Serial.println(sal);
-  digitalWrite(ecPow, LOW);
+  sp.setEcPowPin(false);
   pinMode(2, INPUT_PULLUP);
   pinMode(3, INPUT_PULLUP);
   digitalWrite(2, LOW);
@@ -306,17 +313,16 @@ void readData() {
   // get DO reading
   i = 0;
   Serial.println("Reading dissolved oxygen...");
-  digitalWrite(doPow, HIGH);
+  //digitalWrite(doPow, HIGH);
+  sp.setDoPowPin(true);
   delay(50);
-  SoftwareSerial doSerial(4, 5);  // do sensor TX --> D4 of atmega
+  //SoftwareSerial doSerial(4, 5);  // do sensor TX --> D4 of atmega
+  SoftwareSerial doSerial = sp.setDoSerial(4,5);
   doSerial.begin(9600);
   //delay(5000);
- 
-  startMillis = millis();
-  do{}while(millis()-startMillis < 240000);
   while (i < ecDo_samples) {
     dO = "";
-    doSerial.println("T,"+temp);
+    //doSerial.println("T,"+temp);
     while (doSerial.available() > 0) {
       char serialChar = (char)doSerial.read();
       dO += serialChar;
@@ -338,7 +344,8 @@ void readData() {
 
   dO = String(getAverage(ecDo_arr, ecDo_samples));
   Serial.println(dO);
-  digitalWrite(doPow, LOW);
+  //digitalWrite(doPow, LOW);
+  sp.setDoPowPin(false);
   pinMode(4, INPUT_PULLUP);
   pinMode(5, INPUT_PULLUP);
   digitalWrite(4, LOW);
@@ -352,29 +359,16 @@ void readData() {
   Serial.println("Reading pH...");
   digitalWrite(phPow, HIGH); //turn on pH sensor
 
-  startMillis = millis();
-  do{  //let sensor settle
-    analogRead(A0);
-    Serial.println("Reading ph...");
-    delay(1000);
-    i++;
-  }while(millis() - startMillis <60000); 
-
-  int x = 0;
-  while(x < 2){
+  while (i < 2) { //let sensor settle
     voltageArray(A0);
-    x++;
-    }
+    delay(500);
+    i++;
+  }
   voltageArray(A0);
   phVoltage = getAverage(arr, samples);
-  
   ph = String((phSlope * phVoltage) + phIntercept); //voltage to actual pH value
   if(ph == " NAN"){
-<<<<<<< HEAD
-    ph == "0";
-=======
     ph = "0.00";
->>>>>>> 629981fc4ac07392330fd06d003677b107bcc856
     }
   Serial.println(ph);
   digitalWrite(phPow, LOW);   //turn off pH sensor
@@ -388,11 +382,7 @@ void readData() {
   chlVoltage = getAverage(arr, samples);
   chl = String((chlSlope * chlVoltage) + chlIntercept); //voltage to actual chl value
   if(chl == " NAN"){
-<<<<<<< HEAD
-    chl == "0";
-=======
     ph = "0.00";
->>>>>>> 629981fc4ac07392330fd06d003677b107bcc856
     }
   Serial.println(chl);
   digitalWrite(chlPow, LOW);
@@ -446,8 +436,7 @@ void enterSleep() {
 }
 
 void loop() {
-delay(1000);
-pinMode(2, INPUT_PULLUP);
-enterSleep();
- // readData();
+  delay(1000);
+  pinMode(2, INPUT_PULLUP);
+  enterSleep();
 }

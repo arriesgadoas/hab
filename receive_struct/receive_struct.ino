@@ -54,26 +54,29 @@ void setup() {
   // Send and receive radios need to be set the same
   LoRa.setSpreadingFactor(12);  // ranges from 6-12, default 7 see API docs
   //LoRa.setSyncWord(syncWord);
+  
 }
 
 void loop() {
   // try to parse packet
+   
   int packetSize = LoRa.parsePacket ();
   if (packetSize) // Only read if there is some data to read..
   {
     LoRa.readBytes((uint8_t *)&sensorReading, packetSize);
-    Serial.print("key:");Serial.println(sensorReading.key);
-    Serial.print("command:");Serial.println(sensorReading.command);
-    Serial.print("id:");Serial.println(sensorReading.id);
-    Serial.print("ec:");Serial.println(sensorReading.ec);
-    Serial.print("sal:");Serial.println(sensorReading.sal);
-    Serial.print("dO:");Serial.println(sensorReading.dO);
-    Serial.print("temp:");Serial.println(sensorReading.temp);
-   Serial.print("pH:"); Serial.println(sensorReading.pH);
-   Serial.print("chl:"); Serial.println(sensorReading.chl);
-    Serial.print("volts:");Serial.println(sensorReading.volts);
-    Serial.print("level:");Serial.println(sensorReading.level);
-    Serial.print("sleepTime:");Serial.println(sensorReading.sleepTime);
+    if (sensorReading.key = 83) {
+      Serial.print("key:");Serial.println(String(sensorReading.key));
+      Serial.print("command:");Serial.println(String(sensorReading.command));
+      Serial.print("id:");Serial.println(String(sensorReading.id));
+       Serial.print("ec:");Serial.println(sensorReading.ec);
+       Serial.print("sal:");Serial.println(sensorReading.sal);
+       Serial.print("dO:");Serial.println(sensorReading.dO);
+       Serial.print("temp:");Serial.println(sensorReading.temp);
+       Serial.print("pH:");Serial.println(sensorReading.pH);
+       Serial.print("chl:");Serial.println(sensorReading.chl);
+       Serial.print("volts:");Serial.println(sensorReading.volts);
+      Serial.print("level:");Serial.println(sensorReading.level);
+      Serial.print("sleepTime:");Serial.println(sensorReading.sleepTime);
+    }
   }
-
 }
