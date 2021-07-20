@@ -12,7 +12,7 @@
 #define ecDo_samples 10
 float arr[samples];
 float ecDo_arr[ecDo_samples];
-float sal_arr[ecDo_samples];
+//float sal_arr[ecDo_samples];
 
 //decalarations for filter parameters
 long FilterWeight = 20;
@@ -58,7 +58,7 @@ int checkStatus;
 String dataToLora = "";
 String ec = "";
 String sal = "";
-String ecSal = "";
+//String ecSal = "";
 String dO = "";
 String temp = "";
 String ph = "";
@@ -261,37 +261,32 @@ void readData() {
   delay(1000);
   int i = 0;
   while (i < ecDo_samples) {
-    ecSal = "";
+    ec = "";
+    sal = "";
     //ecSerial.println("T,"+temp);
-    ecSerial.println("o,s,1");
+    //ecSerial.println("o,s,1");
     while (ecSerial.available() > 0) {
       char serialChar = (char)ecSerial.read();
-      ecSal += serialChar;
+      ec += serialChar;
 
       if (serialChar == '\r') {
         //Serial.println(ecSal);
         // Serial.println(i);
-        if (isdigit(ecSal[0]) == false) {
+        if (isdigit(ec[0]) == false) {
           // Serial.println(ecSal);
         }
         else {
-          ec = "";
-          sal = "";
-          ec = getValuebyIndex(ecSal, ',', 0);
-          sal = getValuebyIndex(ecSal, ',', 1);
-          sal_arr[i] = sal.toFloat();
           ecDo_arr[i] = ec.toFloat();
-          // Serial.println(ecDo_arr[i]);
-          // Serial.println(sal_arr[i]);
+         // Serial.println(ecDo_arr[i]);
           i++;
         }
       }
     }
     delay(1000);
   }
-
+  sal = String(pow(getAverage(ecDo_arr, ecDo_samples)/1000,1.0878)*0.4665);
   ec = String(getAverage(ecDo_arr, ecDo_samples));
-  sal = String(getAverage(sal_arr, ecDo_samples));
+  //sal = String(getAverage(sal_arr, ecDo_samples));
   Serial.println(ec);
   Serial.println(sal);
   digitalWrite(ecPow, LOW);
@@ -355,11 +350,9 @@ void readData() {
   startMillis = millis();
   do{  //let sensor settle
     analogRead(A0);
-    Serial.println("Reading ph...");
     delay(1000);
     i++;
   }while(millis() - startMillis <60000); 
-
   int x = 0;
   while(x < 2){
     voltageArray(A0);
@@ -370,11 +363,7 @@ void readData() {
   
   ph = String((phSlope * phVoltage) + phIntercept); //voltage to actual pH value
   if(ph == " NAN"){
-<<<<<<< HEAD
-    ph == "0";
-=======
     ph = "0.00";
->>>>>>> 629981fc4ac07392330fd06d003677b107bcc856
     }
   Serial.println(ph);
   digitalWrite(phPow, LOW);   //turn off pH sensor
@@ -388,11 +377,7 @@ void readData() {
   chlVoltage = getAverage(arr, samples);
   chl = String((chlSlope * chlVoltage) + chlIntercept); //voltage to actual chl value
   if(chl == " NAN"){
-<<<<<<< HEAD
-    chl == "0";
-=======
-    ph = "0.00";
->>>>>>> 629981fc4ac07392330fd06d003677b107bcc856
+    chl = "0.00";
     }
   Serial.println(chl);
   digitalWrite(chlPow, LOW);
@@ -446,8 +431,8 @@ void enterSleep() {
 }
 
 void loop() {
-delay(1000);
-pinMode(2, INPUT_PULLUP);
-enterSleep();
- // readData();
+//delay(1000);
+//pinMode(2, INPUT_PULLUP);
+//enterSleep();
+  readData();
 }

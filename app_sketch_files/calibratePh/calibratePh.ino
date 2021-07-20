@@ -18,22 +18,25 @@ void loop() {
     char serialChar = (char)Serial.read();
     dataString += serialChar;
     }*/
-  if (Serial.available() > 0) {
-    dataString = Serial.readString();
-    Serial.println(dataString);
-    char buff[dataString.length() + 1];
-    dataString.toCharArray(buff, dataString.length() + 1);
-    char* first =  strtok(buff, ":");
-    char* second = strtok(NULL, "\r");
-    String data1_S = first;
-    data1 = data1_S.toFloat();
-    String data2_S = second;
-    data2 = data2_S.toFloat();
-    Serial.println(data1);
-    Serial.println(data2);
+//  if (Serial.available() > 0) {
+//    dataString = Serial.readString();
+//    Serial.println(dataString);
+//    char buff[dataString.length() + 1];
+//    dataString.toCharArray(buff, dataString.length() + 1);
+//    char* first =  strtok(buff, ":");
+//    char* second = strtok(NULL, "\r");
+//    String data1_S = first;
+//    data1 = 3.571;//data1_S.toFloat();
+//    String data2_S = second;
+//    data2 = 1.214;//data2_S.toFloat();
+//    Serial.println(data1);
+//    Serial.println(data2);
+//    EEPROM.put(address3, data1);
+//    EEPROM.put(address4, data2);
+//  }
+    data1 = 3.297;//data1_S.toFloat();
+    data2 = -0.58;//data2_S.toFloat();
     EEPROM.put(address3, data1);
     EEPROM.put(address4, data2);
-  }
-    
   delay(1000);
 }
