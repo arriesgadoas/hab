@@ -53,65 +53,67 @@ def send_data_mqtt_remote(data_to_send):
     
     
 while (1):
-   
-   s = serial.readline();
-   #print(s)
-   s = s.replace('\r','')
-   s = s.replace('\n','')
-  # s += ",0"
-   if s == "":
-       print("empty")
-   else:
+    try:
+       s = serial.readline();
        #print(s)
-       now = datetime.now()
-       dateTime = now.strftime("%d/%m/%y %H:%M:%S")
-       data = s.split(",")
-       try:
-           pass_code = data[0]
-           sp_id = "sp" + data[1]
-           ec = data[2]
-           sal = data[3]
-           do = data[4]
-           temp = data[5]
-           pH = data[6]
-           chl = data[7]
-           batt = data[8]
-           payload = {'id':sp_id,'ec':ec,'sal':sal,'do':do,'temp':temp,'pH':pH,'chl':chl,'batt':batt,'datetime':dateTime}
-       except:
-           payload ={'id':0,'ec':0,'sal':0,'do':0,'temp':0,'pH':0,'chl':0,'batt':0,'datetime':dateTime}
-       if (pass_code == "spdata"):
-           print("Receiving transmission from SensPak no. {}...".format(sp_id))
-           print("{},{}".format(s,str(dateTime)))
-           #print(payload)
-           f = open("HAB_data.txt", "a")
-           f.write(str(payload))
-           f.write(",")
-           f.write("\n");
-           f.close()
-       
-           if is_connected() == 1:
-               print("Online")
-               #send_data_http(payload)
-               send_data_mqtt_remote(payload)
-               #send_data_mqtt_local(payload)
-           else:
-               print("Offline")
-               #send_data_mqtt_local(payload)
-##       
-##           f = open("HAB_data.txt", "a")
-##           f.write(str(payload))
-##           f.write(",")
-##           f.write("\n");
-##           f.close()
-    
-     
-       time.sleep(1)
-       serial.flushInput()
+       s = s.replace('\r','')
+       s = s.replace('\n','')
+      # s += ",0"
+       if s == "":
+           print("empty")
+       else:
+           #print(s)
+           now = datetime.now()
+           dateTime = now.strftime("%d/%m/%y %H:%M:%S")
+           data = s.split(",")
+           try:
+               pass_code = data[0]
+               sp_id = "sp" + data[1]
+               ec = data[2]
+               sal = data[3]
+               do = data[4]
+               temp = data[5]
+               pH = data[6]
+               chl = data[7]
+               batt = data[8]
+               payload = {'id':sp_id,'ec':ec,'sal':sal,'do':do,'temp':temp,'pH':pH,'chl':chl,'batt':batt,'datetime':dateTime}
+           except:
+               payload ={'id':0,'ec':0,'sal':0,'do':0,'temp':0,'pH':0,'chl':0,'batt':0,'datetime':dateTime}
+           if (pass_code == "spdata"):
+               print("Receiving transmission from SensPak no. {}...".format(sp_id))
+               print("{},{}".format(s,str(dateTime)))
+               #print(payload)
+               f = open("HAB_data.txt", "a")
+               f.write(str(payload))
+               f.write(",")
+               f.write("\n");
+               f.close()
            
-    
-       
-       
-       
+               if is_connected() == 1:
+                   print("Online")
+                   #send_data_http(payload)
+                   send_data_mqtt_remote(payload)
+                   #send_data_mqtt_local(payload)
+               else:
+                   print("Offline")
+                   #send_data_mqtt_local(payload)
+    ##       
+    ##           f = open("HAB_data.txt", "a")
+    ##           f.write(str(payload))
+    ##           f.write(",")
+    ##           f.write("\n");
+    ##           f.close()
+        
+         
+           time.sleep(1)
+           serial.flushInput()
+    except:
+        print("waiting for serial")
+               
+        
+           
+           
+           
 
 
 
