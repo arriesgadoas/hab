@@ -81,7 +81,8 @@ while (1):
            payload ={'id':0,'ec':0,'sal':0,'do':0,'temp':0,'pH':0,'chl':0,'batt':0,'datetime':dateTime}
        if (pass_code == "spdata"):
            print("Receiving transmission from SensPak no. {}...".format(sp_id))
-           print("{}:{}".format(s,str(dateTime)))
+           print("{},{}".format(s,str(dateTime)))
+           #print(payload)
            f = open("HAB_data.txt", "a")
            f.write(str(payload))
            f.write(",")
